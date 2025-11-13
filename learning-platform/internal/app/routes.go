@@ -42,5 +42,16 @@ func SetupRouter(c *Container) *gin.Engine {
 		user.PUT("/profile", c.UserHandler.UpdateProfile)
 	}
 
+	topic := api.Group("/topics")
+	{
+		topic.GET("", c.TopicHandler.GetAll)
+		topic.GET("/:id", c.TopicHandler.GetByID)
+
+	topic.POST("", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware		("Teacher", "Admin"), c.TopicHandler.Create)
+	topic.PUT("/:id", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware("Teacher", "Admin"), c.TopicHandler.Update)
+	topic.DELETE("/:id", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware("Teacher", "Admin"), c.TopicHandler.Delete)
+	}
+
+
 	return router
 }
