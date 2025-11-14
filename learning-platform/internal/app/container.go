@@ -12,6 +12,7 @@ import (
 type Container struct {
 	AuthHandler *handler.AuthHandler
 	UserHandler *handler.UserHandler
+	TaskHandler *handler.TaskHandler
 	TopicHandler *handler.TopicHandler
 }
 
@@ -21,6 +22,10 @@ func NewContainer(jwtSecret string) *Container {
 	userRepo := repository.NewUserRepository(dbConn)
 	tokenRepo := repository.NewTokenRepository(dbConn)
 	topicRepo := repository.NewTopicRepository(dbConn)
+
+	taskRepo := repository.NewTaskRepository(dbConn)
+	taskService := service.NewTaskService(taskRepo)
+	taskHandler := handler.NewTaskHandler(taskService)
 
 	s3Service, err := service.NewS3Service()
 	if err != nil {
@@ -39,6 +44,7 @@ func NewContainer(jwtSecret string) *Container {
 	return &Container{
 		AuthHandler: authHandler,
 		UserHandler: userHandler,
+		TaskHandler: taskHandler,
 		TopicHandler: topicHandler,
 	}
 }
