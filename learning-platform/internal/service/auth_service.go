@@ -29,9 +29,10 @@ func (s *AuthService) generateHash(value string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s *AuthService) createJWT(userID uuid.UUID) (string, error) {
+func (s *AuthService) createJWT(userID uuid.UUID, role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID.String(),
+		"role":    role,
 		"exp":     time.Now().Add(15 * time.Minute).Unix(),
 	})
 	return token.SignedString([]byte(s.secret))
@@ -54,7 +55,7 @@ func (s *AuthService) Login(email, password string) (string, string, error) {
 
 	_ = s.tokens.RevokeAllForUser(user.ID)
 
-	access, err := s.createJWT(user.ID)
+	access, err := s.createJWT(user.ID, string(user.Role))
 	if err != nil {
 		return "", "", err
 	}
@@ -87,7 +88,12 @@ func (s *AuthService) Refresh(oldRefresh string) (string, string, error) {
 
 	_ = s.tokens.RevokeToken(hash)
 
-	newAccess, err := s.createJWT(token.UserID)
+	user, err := s.users.FindByID(token.UserID.String())
+	if err != nil || user == nil {
+		return "", "", errors.New("user not found")
+	}
+
+	newAccess, err := s.createJWT(token.UserID, string(user.Role))
 	if err != nil {
 		return "", "", err
 	}
@@ -105,3 +111,4 @@ func (s *AuthService) Refresh(oldRefresh string) (string, string, error) {
 
 	return newAccess, newRefreshValue, nil
 }
+

@@ -51,6 +51,14 @@ func SetupRouter(c *Container) *gin.Engine {
 		tasks.PUT("/:id", c.TaskHandler.UpdateTask)
 		tasks.DELETE("/:id", c.TaskHandler.DeleteTask)
 		tasks.GET("/my/tasks", c.TaskHandler.GetMyTasks)
+	topic := api.Group("/topics")
+	{
+		topic.GET("", c.TopicHandler.GetAll)
+		topic.GET("/:id", c.TopicHandler.GetByID)
+
+	topic.POST("", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware		("Teacher", "Admin"), c.TopicHandler.Create)
+	topic.PUT("/:id", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware("Teacher", "Admin"), c.TopicHandler.Update)
+	topic.DELETE("/:id", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware("Teacher", "Admin"), c.TopicHandler.Delete)
 	}
 
 
