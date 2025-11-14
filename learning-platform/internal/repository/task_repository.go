@@ -14,6 +14,27 @@ func NewTaskRepository(db *gorm.DB) *TaskRepository {
 	return &TaskRepository{db: db}
 }
 
+func (r *TaskRepository) GetAllTasks() ([]models.Task, error) {
+	var tasks []models.Task
+	err := r.db.Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *TaskRepository) GetDraftTasks() ([]models.Task, error) {
+	var tasks []models.Task
+	err := r.db.Where("status = ?", models.TaskStatusDraft).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *TaskRepository) UpdateStatus(id string, status models.TaskStatus) error {
+    return r.db.Model(&models.Task{}).
+        Where("id = ?", id).
+        Update("status", status).
+        Error
+}
+
+
+
 func (r *TaskRepository) CreateTask(task *models.Task) error {
 	return r.db.Create(task).Error
 }

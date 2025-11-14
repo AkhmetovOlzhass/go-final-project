@@ -13,6 +13,20 @@ func NewTaskService(taskRepo *repository.TaskRepository) *TaskService {
 	return &TaskService{taskRepo: taskRepo}
 }
 
+func (s *TaskService) GetAllTasks() ([]models.Task, error) {
+	return s.taskRepo.GetAllTasks()
+}
+
+func (s *TaskService) GetDraftTasks() ([]models.Task, error) {
+	return s.taskRepo.GetDraftTasks()
+}
+
+func (s *TaskService) PublishTask(id string) error {
+    return s.taskRepo.UpdateStatus(id, models.TaskStatusPublished)
+}
+
+
+
 func (s *TaskService) CreateTask(task *models.Task) error {
 	return s.taskRepo.CreateTask(task)
 }

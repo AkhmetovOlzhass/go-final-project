@@ -17,6 +17,17 @@ func NewUserHandler(u *service.UserService, s3 *service.S3Service) *UserHandler 
     return &UserHandler{users: u, s3: s3}
 }
 
+func (h *UserHandler) GetAllUsers(c *gin.Context) {
+    users, err := h.users.GetAllUsers()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+        return
+    }
+
+    c.JSON(http.StatusOK, users)
+}
+
+
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	userID := c.GetString("user_id")
 	user, err := h.users.FindByID(userID)

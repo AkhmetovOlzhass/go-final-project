@@ -19,18 +19,20 @@ type Container struct {
 func NewContainer(jwtSecret string) *Container {
 	dbConn := db.Connect()
 
+	s3Service, err := service.NewS3Service()
+	if err != nil {
+		log.Fatalf("failed to init S3 service: %v", err)
+	}
+
 	userRepo := repository.NewUserRepository(dbConn)
 	tokenRepo := repository.NewTokenRepository(dbConn)
 	topicRepo := repository.NewTopicRepository(dbConn)
 
 	taskRepo := repository.NewTaskRepository(dbConn)
 	taskService := service.NewTaskService(taskRepo)
-	taskHandler := handler.NewTaskHandler(taskService)
+	taskHandler := handler.NewTaskHandler(taskService, s3Service)
 
-	s3Service, err := service.NewS3Service()
-	if err != nil {
-		log.Fatalf("failed to init S3 service: %v", err)
-	}
+
 
 	authService := service.NewAuthService(userRepo, tokenRepo, jwtSecret)
 	userService := service.NewUserService(userRepo, s3Service)

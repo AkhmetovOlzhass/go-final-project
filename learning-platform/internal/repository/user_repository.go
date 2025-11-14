@@ -11,6 +11,7 @@ type IUserRepository interface {
 	FindByEmail(email string) (*models.User, error)
 	FindByID(id string) (*models.User, error)
 	Update(user *models.User) error
+	GetAll() ([]models.User, error) 
 }
 
 type UserRepository struct {
@@ -19,6 +20,14 @@ type UserRepository struct {
 
 func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
+}
+
+func (r *UserRepository) GetAll() ([]models.User, error) {
+    var users []models.User
+    if err := r.db.Find(&users).Error; err != nil {
+        return nil, err
+    }
+    return users, nil
 }
 
 func (r *UserRepository) Create(user *models.User) error {

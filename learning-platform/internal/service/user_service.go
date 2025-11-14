@@ -15,6 +15,29 @@ func NewUserService(users repository.IUserRepository, s3 *S3Service) *UserServic
 	return &UserService{users: users, s3: s3}
 }
 
+func (s *UserService) GetAllUsers() ([]map[string]interface{}, error) {
+    users, err := s.users.GetAll()
+    if err != nil {
+        return nil, err
+    }
+
+    formatted := make([]map[string]interface{}, len(users))
+
+    for i, u := range users {
+        formatted[i] = map[string]interface{}{
+            "id":           u.ID,
+            "email":        u.Email,
+            "display_name": u.DisplayName,
+            "role":         u.Role,
+            "avatar_url":   u.AvatarURL,
+            "created_at":   u.CreatedAt,
+        }
+    }
+
+    return formatted, nil
+}
+
+
 func (s *UserService) FindByID(id string) (*models.User, error) {
 	user, err := s.users.FindByID(id)
 	if err != nil {
