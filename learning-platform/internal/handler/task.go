@@ -49,7 +49,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -116,7 +116,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists || existingTask.AuthorID != userID.(string) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to update this task"})
 		return
@@ -129,6 +129,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		Difficulty:      req.Difficulty,
 		Status:          req.Status,
 		TopicID:         req.TopicID,
+		AuthorID:        existingTask.AuthorID,
 		OfficialSolution: req.OfficialSolution,
 		CorrectAnswer:   req.CorrectAnswer,
 		AnswerType:      req.AnswerType,
@@ -155,7 +156,7 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists || existingTask.AuthorID != userID.(string) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete this task"})
 		return
@@ -170,7 +171,7 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetMyTasks(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return

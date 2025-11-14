@@ -35,32 +35,41 @@ func SetupRouter(c *Container) *gin.Engine {
 		auth.POST("/refresh", c.AuthHandler.Refresh)
 	}
 
-	user := api.Group("/user")
-	user.Use(middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
+	user := api.Group("/user", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
 	{
 		user.GET("/profile", c.UserHandler.GetProfile)
 		user.PUT("/profile", c.UserHandler.UpdateProfile)
 	}
 
-	tasks := api.Group("/tasks")
-	tasks.Use(middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
-	{
-		tasks.GET("/topic/:topic_id", c.TaskHandler.GetTasksByTopic)
-		tasks.GET("/:id", c.TaskHandler.GetTask)
-		tasks.POST("", c.TaskHandler.CreateTask)
-		tasks.PUT("/:id", c.TaskHandler.UpdateTask)
-		tasks.DELETE("/:id", c.TaskHandler.DeleteTask)
-		tasks.GET("/my/tasks", c.TaskHandler.GetMyTasks)
-	topic := api.Group("/topics")
+	topic := api.Group("/topics", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
 	{
 		topic.GET("", c.TopicHandler.GetAll)
 		topic.GET("/:id", c.TopicHandler.GetByID)
 
-	topic.POST("", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware		("Teacher", "Admin"), c.TopicHandler.Create)
-	topic.PUT("/:id", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware("Teacher", "Admin"), c.TopicHandler.Update)
-	topic.DELETE("/:id", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.RoleMiddleware("Teacher", "Admin"), c.TopicHandler.Delete)
+		protectedTopic := topic.Group("")
+		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin"))
+		{
+			protectedTopic.POST("", c.TopicHandler.Create)
+			protectedTopic.PUT("/:id", c.TopicHandler.Update)
+			protectedTopic.DELETE("/:id", c.TopicHandler.Delete)
+		}
 	}
 
+	tasks := api.Group("/tasks", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
+	{
+		tasks.GET("/topic/:topic_id", c.TaskHandler.GetTasksByTopic)
+		tasks.GET("/:id", c.TaskHandler.GetTask)
+		tasks.GET("/my/tasks", c.TaskHandler.GetMyTasks)
+	
+		protectedTasks := tasks.Group("")
+		protectedTasks.Use(middleware.RoleMiddleware("Teacher", "Admin"))
+		{
+			protectedTasks.POST("", c.TaskHandler.CreateTask)
+			protectedTasks.PUT("/:id", c.TaskHandler.UpdateTask)
+			protectedTasks.DELETE("/:id", c.TaskHandler.DeleteTask)
+		}
+	}
+	
 
 	return router
 }

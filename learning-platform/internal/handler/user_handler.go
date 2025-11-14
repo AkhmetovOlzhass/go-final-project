@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"learning-platform/internal/service" 
+	"learning-platform/internal/dto"
 )
 
 type UserHandler struct {
@@ -34,26 +35,29 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 }
 
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	userID := c.GetString("user_id")
+    userID := c.GetString("user_id")
 
-	email := c.PostForm("email")
-	displayName := c.PostForm("displayName")
+    var req dto.UpdateProfileRequest
+    if err := c.ShouldBind(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
 
-	var avatarURL *string
-	file, err := c.FormFile("avatar")
-	if err == nil && file != nil {
-		url, uploadErr := h.s3.UploadFile(file)
-		if uploadErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload avatar"})
-			return
-		}
-		avatarURL = &url
-	}
+    var avatarURL *string
+    file, err := c.FormFile("avatar")
+    if err == nil && file != nil {
+        url, uploadErr := h.s3.UploadFile(file)
+        if uploadErr != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload avatar"})
+            return
+        }
+        avatarURL = &url
+    }
 
-	if err := h.users.Update(userID, &email, &displayName, avatarURL); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    if err := h.users.Update(userID, &req.Email, &req.DisplayName, avatarURL); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+    c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }

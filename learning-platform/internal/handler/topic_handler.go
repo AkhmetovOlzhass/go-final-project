@@ -4,6 +4,7 @@ import (
     "net/http"
     "learning-platform/internal/models"
     "learning-platform/internal/service"
+    "learning-platform/internal/dto"
     "github.com/gin-gonic/gin"
 )
 
@@ -16,15 +17,25 @@ func NewTopicHandler(topics *service.TopicService) *TopicHandler {
 }
 
 func (h *TopicHandler) Create(c *gin.Context) {
-    var topic models.Topic
-    if err := c.ShouldBindJSON(&topic); err != nil {
+    var req dto.CreateTopicRequest
+
+    if err := c.ShouldBindJSON(&req); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
         return
     }
+
+    topic := models.Topic{
+        Title:       req.Title,
+        Slug:        req.Slug,
+        ParentID:    req.ParentID,
+        SchoolClass: req.SchoolClass,
+    }
+
     if err := h.topics.Create(&topic); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
+
     c.JSON(http.StatusCreated, topic)
 }
 
@@ -49,12 +60,21 @@ func (h *TopicHandler) GetByID(c *gin.Context) {
 
 func (h *TopicHandler) Update(c *gin.Context) {
     id := c.Param("id")
-    var topic models.Topic
-    if err := c.ShouldBindJSON(&topic); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+
+    var req dto.UpdateTopicRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-    topic.ID = id
+
+    topic := models.Topic{
+        ID:          id,
+        Title:       req.Title,
+        Slug:        req.Slug,
+        ParentID:    req.ParentID,
+        SchoolClass: req.SchoolClass,
+    }
+
     if err := h.topics.Update(&topic); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
