@@ -3,7 +3,10 @@ package handler
 import (
 	"net/http"
 
+	"learning-platform/internal/dto"
 	"learning-platform/internal/models"
+	"learning-platform/internal/response"
+	"learning-platform/internal/mapper"
 	"learning-platform/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -19,47 +22,24 @@ func NewTaskHandler(taskService *service.TaskService, s3 *service.S3Service) *Ta
 	return &TaskHandler{taskService: taskService,  s3: s3}
 }
 
-type CreateTaskRequest struct {
-    Title            string                `form:"title" binding:"required"`
-    BodyMD           string                `form:"body_md" binding:"required"`
-    Difficulty       models.Difficulty     `form:"difficulty" binding:"required"`
-    Status           models.TaskStatus     `form:"status" binding:"required"`
-    TopicID          string                `form:"topic_id" binding:"required"`
-    OfficialSolution string                `form:"official_solution"`
-    CorrectAnswer    string                `form:"correct_answer"`
-    AnswerType       models.AnswerType     `form:"answer_type" binding:"required"`
-}
-
-type UpdateTaskRequest struct {
-    Title            string            `form:"title" binding:"required"`
-    BodyMD           string            `form:"body_md" binding:"required"`
-    Difficulty       models.Difficulty `form:"difficulty" binding:"required"`
-    Status           models.TaskStatus `form:"status" binding:"required"`
-    TopicID          string            `form:"topic_id" binding:"required"`
-    OfficialSolution string            `form:"official_solution"`
-    CorrectAnswer    string            `form:"correct_answer"`
-    AnswerType       models.AnswerType `form:"answer_type" binding:"required"`
-}
-
-
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	tasks, err := h.taskService.GetAllTasks()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks"})
+		response.Error(c, http.StatusInternalServerError, "failed to fetch tasks")
 		return
 	}
 
-	c.JSON(http.StatusOK, tasks)
+	response.Success(c, mapper.ToTaskList(tasks))
 }
 
 func (h *TaskHandler) GetDraftTasks(c *gin.Context) {
 	tasks, err := h.taskService.GetDraftTasks()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch draft tasks"})
+		response.Error(c, http.StatusInternalServerError, "failed to fetch draft tasks")
 		return
 	}
 
-	c.JSON(http.StatusOK, tasks)
+	response.Success(c, mapper.ToTaskList(tasks))
 }
 
 func (h *TaskHandler) PublishTask(c *gin.Context) {
@@ -67,47 +47,47 @@ func (h *TaskHandler) PublishTask(c *gin.Context) {
 
     existingTask, err := h.taskService.GetTask(id)
     if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+        response.Error(c, http.StatusNotFound, "Task not found")
         return
     }
 
-    userID, exists := c.Get("user_id")
+    userID, exists := c.Get("userId")
     if !exists || existingTask.AuthorID != userID.(string) {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to publish this task"})
+		response.Error(c, http.StatusForbidden, "Not authorized to publish this task")
         return
     }
 
     if err := h.taskService.PublishTask(id); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to publish task"})
+		response.Error(c, http.StatusInternalServerError, "Failed to publish task")
         return
     }
 
     updated, _ := h.taskService.GetTask(id)
-    c.JSON(http.StatusOK, updated)
+    response.Success(c, mapper.ToTaskResponse(updated))
 }
 
 
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	var req CreateTaskRequest
+	var req dto.CreateTaskRequest
 
 	if err := c.ShouldBindWith(&req, binding.FormMultipart); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userId")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	var imageURL string
-	file, err := c.FormFile("image_url") 
+	file, err := c.FormFile("imageUrl") 
 	if err == nil && file != nil {
 		url, uploadErr := h.s3.UploadFile(file)
 		if uploadErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload image"})
+			response.Error(c, http.StatusInternalServerError, "failed to upload image")
 			return
 		}
 		imageURL = url
@@ -127,11 +107,11 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if err := h.taskService.CreateTask(task); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
+		response.Error(c, http.StatusInternalServerError, "Failed to create task")
 		return
 	}
 
-	c.JSON(http.StatusCreated, task)
+	response.SuccessWithStatus(c, http.StatusCreated, mapper.ToTaskResponse(task))
 }
 
 
@@ -140,23 +120,23 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 
 	task, err := h.taskService.GetTask(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+		response.Error(c, http.StatusNotFound, "Task not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, task)
+	response.Success(c, mapper.ToTaskResponse(task))
 }
 
 func (h *TaskHandler) GetTasksByTopic(c *gin.Context) {
-	topicID := c.Param("topic_id")
+	topicID := c.Param("topicId")
 
 	tasks, err := h.taskService.GetTasksByTopic(topicID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks"})
+		response.Error(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
 	}
 
-	c.JSON(http.StatusOK, tasks)
+	response.Success(c, mapper.ToTaskList(tasks))
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
@@ -164,29 +144,29 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
     existingTask, err := h.taskService.GetTask(id)
     if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+        response.Error(c, http.StatusNotFound, "Task not found")
         return
     }
 
-    userID, exists := c.Get("user_id")
+    userID, exists := c.Get("userId")
     if !exists || existingTask.AuthorID != userID.(string) {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to update this task"})
+        response.Error(c, http.StatusForbidden, "Not authorized to update this task")
         return
     }
 
-    var req UpdateTaskRequest
+    var req dto.UpdateTaskRequest
     if err := c.ShouldBindWith(&req, binding.FormMultipart); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        response.Error(c, http.StatusBadRequest, err.Error())
         return
     }
 
     imageURL := existingTask.ImageURL
 
-    file, err := c.FormFile("image_url")
+    file, err := c.FormFile("imageUrl")
     if err == nil && file != nil {
         url, uploadErr := h.s3.UploadFile(file)
         if uploadErr != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload image"})
+            response.Error(c, http.StatusInternalServerError, "failed to upload image")
             return
         }
         imageURL = url
@@ -207,12 +187,12 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
     }
 
     if err := h.taskService.UpdateTask(updated); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update task"})
+        response.Error(c, http.StatusInternalServerError, "Failed to update task")
         return
     }
 
     finalTask, _ := h.taskService.GetTask(id)
-    c.JSON(http.StatusOK, finalTask)
+    response.Success(c, mapper.ToTaskResponse(finalTask))
 }
 
 
@@ -220,39 +200,38 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	id := c.Param("id")
 
-	// Verify task exists and user is author
 	existingTask, err := h.taskService.GetTask(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+		response.Error(c, http.StatusNotFound, "Task not found")
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userId")
 	if !exists || existingTask.AuthorID != userID.(string) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized to delete this task"})
+		response.Error(c, http.StatusForbidden, "Not authorized to delete this task")
 		return
 	}
 
 	if err := h.taskService.DeleteTask(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete task"})
+		response.Error(c, http.StatusInternalServerError, "Failed to delete task")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully"})
+	response.Success(c, "Task deleted successfully")
 }
 
 func (h *TaskHandler) GetMyTasks(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userId")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	tasks, err := h.taskService.GetTasksByAuthor(userID.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks"})
+		response.Error(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
 	}
 
-	c.JSON(http.StatusOK, tasks)
+	response.Success(c, mapper.ToTaskList(tasks))
 }

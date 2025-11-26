@@ -22,6 +22,6 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 			}
 		}
 
-		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Don't have permissions"})
 	}
 }

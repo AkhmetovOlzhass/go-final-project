@@ -60,7 +60,7 @@ func SetupRouter(c *Container) *gin.Engine {
 	{
 		tasks.GET("", c.TaskHandler.GetAllTasks)
 		tasks.GET("/drafts", c.TaskHandler.GetDraftTasks)
-		tasks.GET("/topic/:topic_id", c.TaskHandler.GetTasksByTopic)
+		tasks.GET("/topic/:topicId", c.TaskHandler.GetTasksByTopic)
 		tasks.GET("/:id", c.TaskHandler.GetTask)
 		tasks.GET("/my/tasks", c.TaskHandler.GetMyTasks)
 	

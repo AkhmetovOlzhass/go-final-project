@@ -1,0 +1,102 @@
+version: "3"
+
+dotenv: [".env"]
+
+vars:
+  APP_NAME: learning-platform
+  MAIN: ./cmd/api
+  BINARY: ./tmp/main
+  MIGRATIONS_DIR: ./migrations
+
+  DATABASE_URL: postgres://{{.DB_USER}}:{{.DB_PASSWORD}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode=disable
+
+tasks:
+
+  # =============================
+  # Development (Air Hot Reload)
+  # =============================
+  dev:
+    desc: "Run Go app with Air hot reload"
+    cmds:
+      - air -c air.toml
+
+  # =============================
+  # Docker
+  # =============================
+  up:
+    desc: "Start DB + Redis"
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: "Stop Docker services"
+    cmds:
+      - docker compose down
+
+  logs:
+    desc: "Logs"
+    cmds:
+      - docker compose logs -f
+
+  rebuild:
+    desc: "Rebuild Docker"
+    cmds:
+      - docker compose up --build -d
+
+  restart:
+    desc: "Restart services"
+    cmds:
+      - docker compose down
+      - docker compose up -d
+
+  # =============================
+  # Build & Run
+  # =============================
+  build:
+    desc: "Build Go binary"
+    cmds:
+      - go build -o {{.BINARY}} {{.MAIN}}
+
+  run:
+    desc: "Run Go without hot reload"
+    cmds:
+      - go run {{.MAIN}}
+
+  clean:
+    desc: "Clean tmp dir"
+    cmds:
+      - rm -rf tmp
+
+  # =============================
+  # Migrations (go-migrate)
+  # =============================
+  migrate-up:
+    desc: "Apply migrations"
+    cmds:
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" up
+
+  migrate-down:
+    desc: "Rollback last migration"
+    cmds:
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down
+
+  migrate-new:
+    desc: "Create new migration"
+    cmds:
+      - |
+        if [ -z "{{.name}}" ]; then
+          echo "ERROR: task migrate-new name=init_users"
+          exit 1
+        fi
+      - migrate create -ext sql -dir {{.MIGRATIONS_DIR}} -seq {{.name}}
+
+  migrate-force:
+    desc: "Force version"
+    cmds:
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" force {{.version}}
+
+  migrate-reset:
+    desc: "Reset DB (down + up)"
+    cmds:
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" up

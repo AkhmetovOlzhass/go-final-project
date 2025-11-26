@@ -27,20 +27,18 @@ func NewContainer(jwtSecret string) *Container {
 	userRepo := repository.NewUserRepository(dbConn)
 	tokenRepo := repository.NewTokenRepository(dbConn)
 	topicRepo := repository.NewTopicRepository(dbConn)
-
 	taskRepo := repository.NewTaskRepository(dbConn)
-	taskService := service.NewTaskService(taskRepo)
-	taskHandler := handler.NewTaskHandler(taskService, s3Service)
-
-
 
 	authService := service.NewAuthService(userRepo, tokenRepo, jwtSecret)
-	userService := service.NewUserService(userRepo, s3Service)
+	userService := service.NewUserService(userRepo)
 	topicService := service.NewTopicService(topicRepo)
+	taskService := service.NewTaskService(taskRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService, s3Service)
 	topicHandler := handler.NewTopicHandler(topicService)
+	taskHandler := handler.NewTaskHandler(taskService, s3Service)
+
 
 
 	return &Container{

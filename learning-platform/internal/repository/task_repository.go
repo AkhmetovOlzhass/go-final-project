@@ -2,7 +2,6 @@ package repository
 
 import (
 	"learning-platform/internal/models"
-
 	"gorm.io/gorm"
 )
 

@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"learning-platform/internal/service" 
+    "learning-platform/internal/response"
+    "learning-platform/internal/mapper"
 	"learning-platform/internal/dto"
 )
 
@@ -20,55 +22,51 @@ func NewUserHandler(u *service.UserService, s3 *service.S3Service) *UserHandler 
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
     users, err := h.users.GetAllUsers()
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+        response.Error(c, http.StatusInternalServerError, "Failed to fetch users")
         return
     }
 
-    c.JSON(http.StatusOK, users)
+    responses := mapper.ToUserList(users)
+    response.Success(c, responses)
 }
 
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
-	userID := c.GetString("user_id")
+	userID := c.GetString("userId")
 	user, err := h.users.FindByID(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		response.Error(c, http.StatusNotFound, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":          user.ID,
-		"email":       user.Email,
-		"displayName": user.DisplayName,
-		"role":        user.Role,
-		"avatarUrl":        user.AvatarURL,
-	})
+	response.Success(c, mapper.ToUserResponse(user))
 }
 
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-    userID := c.GetString("user_id")
+    userID := c.GetString("userId")
 
     var req dto.UpdateProfileRequest
     if err := c.ShouldBind(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        response.Error(c, http.StatusBadRequest, err.Error())
         return
     }
 
     var avatarURL *string
-    file, err := c.FormFile("avatar")
-    if err == nil && file != nil {
+    file, _ := c.FormFile("avatar")
+    if file != nil {
         url, uploadErr := h.s3.UploadFile(file)
         if uploadErr != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload avatar"})
+            response.Error(c, http.StatusInternalServerError, "Failed to upload avatar")
             return
         }
         avatarURL = &url
     }
 
-    if err := h.users.Update(userID, &req.Email, &req.DisplayName, avatarURL); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    updatedProfile, err := h.users.Update(userID, &req.Email, &req.DisplayName, avatarURL)
+    if err != nil {
+        response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+    response.Success(c, mapper.ToUserResponse(updatedProfile))
 }

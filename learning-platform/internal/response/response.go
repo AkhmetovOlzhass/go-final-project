@@ -1,0 +1,30 @@
+package response
+
+import (
+	"github.com/gin-gonic/gin"
+	"log"
+)
+
+func Success(c *gin.Context, data interface{}) {
+	c.JSON(200, gin.H{
+		"success": true,
+		"data":    data,
+	})
+}
+
+func SuccessWithStatus(c *gin.Context, status int, data interface{}) {
+	c.JSON(status, gin.H{
+		"success": true,
+		"data":    data,
+	})
+}
+
+func Error(c *gin.Context, status int, message string) {
+	log.Println("ERROR:", message)
+	c.JSON(status, gin.H{
+		"success": false,
+		"error": gin.H{
+			"message": message,
+		},
+	})
+}

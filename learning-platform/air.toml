@@ -1,0 +1,16 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/main.exe ./cmd/api"
+bin = "./tmp/main.exe"
+include_ext = ["go"]
+exclude_dir = ["tmp"]
+
+[log]
+time = true
+level = "debug"
+
+[watch]
+method = "polling"
+delay = 1000

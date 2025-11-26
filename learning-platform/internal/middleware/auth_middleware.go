@@ -42,7 +42,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		userID, ok := claims["user_id"].(string)
+		userID, ok := claims["userId"].(string)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id"})
 			c.Abort()
@@ -56,7 +56,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", userID)
+		c.Set("userId", userID)
 		c.Set("role", role)
 		c.Next()
 	}
