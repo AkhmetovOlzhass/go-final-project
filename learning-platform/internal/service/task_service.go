@@ -6,55 +6,55 @@ import (
 )
 
 type TaskService struct {
-	taskRepo *repository.TaskRepository
+	taskRepo repository.ITaskRepository
 }
 
-func NewTaskService(taskRepo *repository.TaskRepository) *TaskService {
+func NewTaskService(taskRepo repository.ITaskRepository) *TaskService {
 	return &TaskService{taskRepo: taskRepo}
 }
 
 func (s *TaskService) GetAllTasks() ([]models.Task, error) {
-	return s.taskRepo.GetAllTasks()
+	return s.taskRepo.GetAll()
 }
 
 func (s *TaskService) GetDraftTasks() ([]models.Task, error) {
-	return s.taskRepo.GetDraftTasks()
+	return s.taskRepo.GetDraft()
 }
 
 func (s *TaskService) PublishTask(id string) (*models.Task, error) {
 
 	if err := s.taskRepo.UpdateStatus(id, models.TaskStatusPublished); err != nil {
-        return nil, err
-    }
+		return nil, err
+	}
 
-    updatedTask, err := s.taskRepo.GetTaskByID(id)
-    if err != nil {
-        return nil, err
-    }
+	updatedTask, err := s.taskRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
 
-    return updatedTask, nil
+	return updatedTask, nil
 }
 
 func (s *TaskService) CreateTask(task *models.Task) error {
-	return s.taskRepo.CreateTask(task)
+	return s.taskRepo.Create(task)
 }
 
 func (s *TaskService) GetTaskById(id string) (*models.Task, error) {
-	return s.taskRepo.GetTaskByID(id)
+	return s.taskRepo.GetByID(id)
 }
 
 func (s *TaskService) GetTasksByTopic(topicID string) ([]models.Task, error) {
-	return s.taskRepo.GetTasksByTopic(topicID)
+	return s.taskRepo.GetByTopic(topicID)
 }
 
 func (s *TaskService) UpdateTask(task *models.Task) error {
-	return s.taskRepo.UpdateTask(task)
+	return s.taskRepo.Update(task)
 }
 
 func (s *TaskService) DeleteTask(id string) error {
-	return s.taskRepo.DeleteTask(id)
+	return s.taskRepo.Delete(id)
 }
 
 func (s *TaskService) GetTasksByAuthor(authorID string) ([]models.Task, error) {
-	return s.taskRepo.GetTasksByAuthor(authorID)
+	return s.taskRepo.GetByAuthor(authorID)
 }

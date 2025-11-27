@@ -1,28 +1,48 @@
 package service
 
 import (
+	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"time"
 	"fmt"
+	"math/big"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	"learning-platform/internal/kafka"
 	"learning-platform/internal/models"
 	"learning-platform/internal/repository"
 )
 
-type AuthService struct {
-	users  repository.IUserRepository
-	tokens repository.ITokenRepository
-	secret string
+func generateVerificationCode() (string, error) {
+	max := big.NewInt(1000000)
+	n, err := crand.Int(crand.Reader, max)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-func NewAuthService(u repository.IUserRepository, t repository.ITokenRepository, secret string) *AuthService {
-	return &AuthService{users: u, tokens: t, secret: secret}
+type AuthService struct {
+	users         repository.IUserRepository
+	verifications repository.IVerificationRepository
+	tokens        repository.ITokenRepository
+	emailProducer *kafka.EmailProducer
+	secret        string
+}
+
+func NewAuthService(u repository.IUserRepository, v repository.IVerificationRepository, t repository.ITokenRepository, p *kafka.EmailProducer, secret string) *AuthService {
+	return &AuthService{
+		users:         u,
+		verifications: v,
+		tokens:        t,
+		emailProducer: p,
+		secret:        secret,
+	}
 }
 
 func (s *AuthService) generateHash(value string) string {
@@ -33,33 +53,77 @@ func (s *AuthService) generateHash(value string) string {
 func (s *AuthService) createJWT(userID uuid.UUID, role models.UserRole) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userId": userID.String(),
-		"role":    string(role),
-		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+		"role":   string(role),
+		"exp":    time.Now().Add(15 * time.Minute).Unix(),
 	})
 	return token.SignedString([]byte(s.secret))
 }
 
-func (s *AuthService) Register(email, password, displayName string) error {
-	existing, err := s.users.FindByEmail(email)
-	if err != nil {
-		return err
-	}
+func (s *AuthService) Register(email, password, name string) error {
+	existing, _ := s.users.FindByEmail(email)
 	if existing != nil {
-		return errors.New("email already exists")
+		return errors.New("email already registered")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
+	pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	user := &models.User{
 		Email:        email,
-		PasswordHash: string(hash),
-		DisplayName:  displayName,
+		PasswordHash: string(pass),
+		DisplayName:  name,
 	}
 
-	return s.users.Create(user)
+	if err := s.users.Create(user); err != nil {
+		return err
+	}
+
+	code, err := generateVerificationCode()
+	if err != nil {
+		return err
+	}
+
+	model := &models.EmailVerification{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		Code:      code,
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	}
+
+	if err := s.verifications.Create(model); err != nil {
+		return err
+	}
+
+	s.emailProducer.Send(kafka.EmailMessage{
+		Email:   email,
+		Subject: "Verify your account",
+		Code:    code,
+	})
+
+	return nil
+}
+
+func (s *AuthService) VerifyEmail(email, code string) error {
+	rec, err := s.verifications.FindValid(email, code)
+	if err != nil {
+		return errors.New("invalid or expired code")
+	}
+
+	if err := s.verifications.MarkUsed(rec.ID); err != nil {
+		return err
+	}
+
+	userId := rec.UserID.String()
+
+	user, err := s.users.FindByID(userId)
+	if err != nil || user == nil {
+		return errors.New("user not found")
+	}
+
+	updateFields := map[string]interface{}{
+		"status": "ACTIVE",
+	}
+
+	return s.users.Update(userId, updateFields)
 }
 
 func (s *AuthService) Login(email, password string) (string, string, error) {
@@ -73,6 +137,10 @@ func (s *AuthService) Login(email, password string) (string, string, error) {
 
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
 		return "", "", errors.New("invalid credentials")
+	}
+
+	if user.Status != "ACTIVE" {
+		return "", "", errors.New("email not verified")
 	}
 
 	if err := s.tokens.RevokeAllForUser(user.ID); err != nil {

@@ -5,12 +5,13 @@ import (
 	"os"
 
 	"learning-platform/internal/app"
+
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	_ = godotenv.Load(".env")
-	
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"

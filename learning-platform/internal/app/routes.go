@@ -31,6 +31,7 @@ func SetupRouter(c *Container) *gin.Engine {
 	auth := api.Group("/auth")
 	{
 		auth.POST("/register", c.AuthHandler.Register)
+		auth.POST("/verify", c.AuthHandler.Verify)
 		auth.POST("/login", c.AuthHandler.Login)
 		auth.POST("/refresh", c.AuthHandler.Refresh)
 	}
@@ -39,7 +40,7 @@ func SetupRouter(c *Container) *gin.Engine {
 	{
 		user.GET("/profile", c.UserHandler.GetProfile)
 		user.PUT("/profile", c.UserHandler.UpdateProfile)
-		user.GET("/all", c.UserHandler.GetAllUsers) 
+		user.GET("/all", c.UserHandler.GetAllUsers)
 	}
 
 	topic := api.Group("/topics", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
@@ -48,7 +49,7 @@ func SetupRouter(c *Container) *gin.Engine {
 		topic.GET("/:id", c.TopicHandler.GetByID)
 
 		protectedTopic := topic.Group("")
-		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin", "Student"))
+		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin"))
 		{
 			protectedTopic.POST("", c.TopicHandler.Create)
 			protectedTopic.PUT("/:id", c.TopicHandler.Update)
@@ -63,9 +64,9 @@ func SetupRouter(c *Container) *gin.Engine {
 		tasks.GET("/topic/:topicId", c.TaskHandler.GetTasksByTopic)
 		tasks.GET("/:id", c.TaskHandler.GetTask)
 		tasks.GET("/my/tasks", c.TaskHandler.GetMyTasks)
-	
+
 		protectedTasks := tasks.Group("")
-		protectedTasks.Use(middleware.RoleMiddleware("Teacher", "Admin", "Student"))
+		protectedTasks.Use(middleware.RoleMiddleware("Teacher", "Admin"))
 		{
 			protectedTasks.POST("/:id/publish", c.TaskHandler.PublishTask)
 			protectedTasks.POST("", c.TaskHandler.CreateTask)
@@ -73,7 +74,6 @@ func SetupRouter(c *Container) *gin.Engine {
 			protectedTasks.DELETE("/:id", c.TaskHandler.DeleteTask)
 		}
 	}
-	
 
 	return router
 }
