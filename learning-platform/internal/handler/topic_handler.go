@@ -11,11 +11,11 @@ import (
 )
 
 type TopicHandler struct {
-    topics *service.TopicService
+    topicService *service.TopicService
 }
 
-func NewTopicHandler(topics *service.TopicService) *TopicHandler {
-    return &TopicHandler{topics: topics}
+func NewTopicHandler(topicService *service.TopicService) *TopicHandler {
+    return &TopicHandler{topicService: topicService}
 }
 
 func (h *TopicHandler) Create(c *gin.Context) {
@@ -26,23 +26,24 @@ func (h *TopicHandler) Create(c *gin.Context) {
         return
     }
 
-    topic := models.Topic{
+    topic := &models.Topic{
         Title:       req.Title,
         Slug:        req.Slug,
         ParentID:    req.ParentID,
         SchoolClass: req.SchoolClass,
     }
 
-    if err := h.topics.Create(&topic); err != nil {
+    
+    if err := h.topicService.CreateTopic(topic); err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }
 
-    response.SuccessWithStatus(c, http.StatusCreated, mapper.ToTopicResponse(&topic))
+    response.SuccessWithStatus(c, http.StatusCreated, mapper.ToTopicResponse(topic))
 }
 
 func (h *TopicHandler) GetAll(c *gin.Context) {
-    topics, err := h.topics.GetAll()
+    topics, err := h.topicService.GetAllTopics()
     if err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
@@ -52,7 +53,7 @@ func (h *TopicHandler) GetAll(c *gin.Context) {
 
 func (h *TopicHandler) GetByID(c *gin.Context) {
     id := c.Param("id")
-    topic, err := h.topics.GetByID(id)
+    topic, err := h.topicService.GetTopicById(id)
     if err != nil {
         response.Error(c, http.StatusNotFound, "Not found")
         return
@@ -77,16 +78,31 @@ func (h *TopicHandler) Update(c *gin.Context) {
         SchoolClass: req.SchoolClass,
     }
 
-    if err := h.topics.Update(&topic); err != nil {
+    if err := h.topicService.UpdateTopic(&topic); err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }
-    response.Success(c, mapper.ToTopicResponse(&topic))
+
+    finalTopic, err := h.topicService.GetTopicById(id)
+
+    if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to fetch updated task")
+		return
+	}
+
+    response.Success(c, mapper.ToTopicResponse(finalTopic))
 }
 
 func (h *TopicHandler) Delete(c *gin.Context) {
     id := c.Param("id")
-    if err := h.topics.Delete(id); err != nil {
+
+    _, err := h.topicService.GetTopicById(id)
+	if err != nil {
+		response.Error(c, http.StatusNotFound, "Topic not found")
+		return
+	}
+
+    if err := h.topicService.DeleteTopic(id); err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }

@@ -48,7 +48,7 @@ func SetupRouter(c *Container) *gin.Engine {
 		topic.GET("/:id", c.TopicHandler.GetByID)
 
 		protectedTopic := topic.Group("")
-		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin"))
+		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin", "Student"))
 		{
 			protectedTopic.POST("", c.TopicHandler.Create)
 			protectedTopic.PUT("/:id", c.TopicHandler.Update)
@@ -65,7 +65,7 @@ func SetupRouter(c *Container) *gin.Engine {
 		tasks.GET("/my/tasks", c.TaskHandler.GetMyTasks)
 	
 		protectedTasks := tasks.Group("")
-		protectedTasks.Use(middleware.RoleMiddleware("Teacher", "Admin"))
+		protectedTasks.Use(middleware.RoleMiddleware("Teacher", "Admin", "Student"))
 		{
 			protectedTasks.POST("/:id/publish", c.TaskHandler.PublishTask)
 			protectedTasks.POST("", c.TaskHandler.CreateTask)

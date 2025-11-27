@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+    "github.com/gin-gonic/gin/binding"
 	"learning-platform/internal/service" 
     "learning-platform/internal/response"
     "learning-platform/internal/mapper"
@@ -11,16 +12,16 @@ import (
 )
 
 type UserHandler struct {
-	users *service.UserService 
+	userService *service.UserService 
 	s3    *service.S3Service
 }
 
-func NewUserHandler(u *service.UserService, s3 *service.S3Service) *UserHandler {
-    return &UserHandler{users: u, s3: s3}
+func NewUserHandler(userService *service.UserService, s3 *service.S3Service) *UserHandler {
+    return &UserHandler{userService: userService, s3: s3}
 }
 
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
-    users, err := h.users.GetAllUsers()
+    users, err := h.userService.GetAllUsers()
     if err != nil {
         response.Error(c, http.StatusInternalServerError, "Failed to fetch users")
         return
@@ -33,7 +34,7 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	userID := c.GetString("userId")
-	user, err := h.users.FindByID(userID)
+	user, err := h.userService.FindByID(userID)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "User not found")
 		return
@@ -46,7 +47,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
     userID := c.GetString("userId")
 
     var req dto.UpdateProfileRequest
-    if err := c.ShouldBind(&req); err != nil {
+    if err := c.ShouldBindWith(&req, binding.FormMultipart); err != nil {
         response.Error(c, http.StatusBadRequest, err.Error())
         return
     }
@@ -62,7 +63,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
         avatarURL = &url
     }
 
-    updatedProfile, err := h.users.Update(userID, &req.Email, &req.DisplayName, avatarURL)
+    updatedProfile, err := h.userService.Update(userID, req.Email, req.DisplayName, avatarURL)
     if err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return

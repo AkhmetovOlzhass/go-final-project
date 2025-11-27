@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+    "strings"
 
 	"learning-platform/internal/models"
 	"learning-platform/internal/repository"
@@ -48,7 +49,11 @@ func (s *UserService) Update(id string, email, displayName *string, avatarURL *s
         return user, nil
     }
 
-    if err := s.users.Update(id, updates); err != nil {
+    err = s.users.Update(id, updates)
+    if err != nil {
+        if strings.Contains(err.Error(), "duplicate key value") {
+            return nil, errors.New("email already taken")
+        }
         return nil, err
     }
 

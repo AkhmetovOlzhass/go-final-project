@@ -21,17 +21,25 @@ func (s *TaskService) GetDraftTasks() ([]models.Task, error) {
 	return s.taskRepo.GetDraftTasks()
 }
 
-func (s *TaskService) PublishTask(id string) error {
-    return s.taskRepo.UpdateStatus(id, models.TaskStatusPublished)
+func (s *TaskService) PublishTask(id string) (*models.Task, error) {
+
+	if err := s.taskRepo.UpdateStatus(id, models.TaskStatusPublished); err != nil {
+        return nil, err
+    }
+
+    updatedTask, err := s.taskRepo.GetTaskByID(id)
+    if err != nil {
+        return nil, err
+    }
+
+    return updatedTask, nil
 }
-
-
 
 func (s *TaskService) CreateTask(task *models.Task) error {
 	return s.taskRepo.CreateTask(task)
 }
 
-func (s *TaskService) GetTask(id string) (*models.Task, error) {
+func (s *TaskService) GetTaskById(id string) (*models.Task, error) {
 	return s.taskRepo.GetTaskByID(id)
 }
 

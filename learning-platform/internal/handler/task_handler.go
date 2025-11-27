@@ -44,26 +44,13 @@ func (h *TaskHandler) GetDraftTasks(c *gin.Context) {
 
 func (h *TaskHandler) PublishTask(c *gin.Context) {
     id := c.Param("id")
-
-    existingTask, err := h.taskService.GetTask(id)
-    if err != nil {
-        response.Error(c, http.StatusNotFound, "Task not found")
-        return
-    }
-
-    userID, exists := c.Get("userId")
-    if !exists || existingTask.AuthorID != userID.(string) {
-		response.Error(c, http.StatusForbidden, "Not authorized to publish this task")
-        return
-    }
-
-    if err := h.taskService.PublishTask(id); err != nil {
+	t, err := h.taskService.PublishTask(id);
+    if  err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to publish task")
         return
     }
 
-    updated, _ := h.taskService.GetTask(id)
-    response.Success(c, mapper.ToTaskResponse(updated))
+    response.Success(c, mapper.ToTaskResponse(t))
 }
 
 
@@ -76,11 +63,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("userId")
-	if !exists {
-		response.Error(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := c.GetString("userId")
 
 	var imageURL string
 	file, err := c.FormFile("imageUrl") 
@@ -99,7 +82,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		Difficulty:       req.Difficulty,
 		Status:           req.Status,
 		TopicID:          req.TopicID,
-		AuthorID:         userID.(string),
+		AuthorID:         userID,
 		OfficialSolution: req.OfficialSolution,
 		CorrectAnswer:    req.CorrectAnswer,
 		AnswerType:       req.AnswerType,
@@ -118,7 +101,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 func (h *TaskHandler) GetTask(c *gin.Context) {
 	id := c.Param("id")
 
-	task, err := h.taskService.GetTask(id)
+	task, err := h.taskService.GetTaskById(id)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "Task not found")
 		return
@@ -142,25 +125,21 @@ func (h *TaskHandler) GetTasksByTopic(c *gin.Context) {
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
     id := c.Param("id")
 
-    existingTask, err := h.taskService.GetTask(id)
-    if err != nil {
-        response.Error(c, http.StatusNotFound, "Task not found")
-        return
-    }
-
-    userID, exists := c.Get("userId")
-    if !exists || existingTask.AuthorID != userID.(string) {
-        response.Error(c, http.StatusForbidden, "Not authorized to update this task")
-        return
-    }
-
     var req dto.UpdateTaskRequest
     if err := c.ShouldBindWith(&req, binding.FormMultipart); err != nil {
         response.Error(c, http.StatusBadRequest, err.Error())
         return
     }
 
-    imageURL := existingTask.ImageURL
+	userID := c.GetString("userId")
+
+	existing, err := h.taskService.GetTaskById(id)
+	if err != nil {
+		response.Error(c, http.StatusNotFound, "Task not found")
+		return
+	}
+	
+	imageURL := existing.ImageURL
 
     file, err := c.FormFile("imageUrl")
     if err == nil && file != nil {
@@ -179,7 +158,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
         Difficulty:       req.Difficulty,
         Status:           req.Status,
         TopicID:          req.TopicID,
-        AuthorID:         existingTask.AuthorID,
+        AuthorID:         userID,
         OfficialSolution: req.OfficialSolution,
         CorrectAnswer:    req.CorrectAnswer,
         AnswerType:       req.AnswerType,
@@ -191,7 +170,13 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
         return
     }
 
-    finalTask, _ := h.taskService.GetTask(id)
+    finalTask, err := h.taskService.GetTaskById(id)
+
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to fetch updated task")
+		return
+	}
+	
     response.Success(c, mapper.ToTaskResponse(finalTask))
 }
 
@@ -200,15 +185,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	id := c.Param("id")
 
-	existingTask, err := h.taskService.GetTask(id)
+	_, err := h.taskService.GetTaskById(id)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "Task not found")
-		return
-	}
-
-	userID, exists := c.Get("userId")
-	if !exists || existingTask.AuthorID != userID.(string) {
-		response.Error(c, http.StatusForbidden, "Not authorized to delete this task")
 		return
 	}
 
@@ -221,13 +200,9 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetMyTasks(c *gin.Context) {
-	userID, exists := c.Get("userId")
-	if !exists {
-		response.Error(c, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
+	userID := c.GetString("userId")
 
-	tasks, err := h.taskService.GetTasksByAuthor(userID.(string))
+	tasks, err := h.taskService.GetTasksByAuthor(userID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
