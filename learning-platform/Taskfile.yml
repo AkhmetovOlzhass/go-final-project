@@ -28,37 +28,12 @@ tasks:
       - echo "Project initialized"
 
   wait-db:
-    desc: 'Wait for PostgreSQL'
+    desc: 'Wait fixed amount of time for PostgreSQL'
     cmds:
       - |
-        if command -v pwsh >/dev/null 2>&1; then
-          # Windows PowerShell Core
-          pwsh -Command "
-          Write-Host 'Waiting for PostgreSQL...'
-          for (\$i = 0; \$i -lt 30; \$i++) {
-            docker exec learning-platform-db-1 pg_isready -U postgres -d eventmanagement | Out-Null
-            if (\$LASTEXITCODE -eq 0) {
-              Write-Host 'PostgreSQL is ready'
-              exit 0
-            }
-            Start-Sleep -Seconds 1
-          }
-          Write-Host 'PostgreSQL did not become ready in time.'
-          exit 1
-          "
-        else
-          # macOS/Linux shell
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if docker exec learning-platform-db-1 pg_isready -U postgres -d eventmanagement >/dev/null 2>&1; then
-              echo "PostgreSQL is ready"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "PostgreSQL did not become ready in time."
-          exit 1
-        fi
+        echo "Waiting for PostgreSQL (fixed delay)..."
+        powershell -NoLogo -NoProfile -Command "Start-Sleep -Seconds 10"
+        echo "Done."
 
   # =============================
   # Docker

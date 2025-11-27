@@ -93,7 +93,7 @@ func (s *AuthService) Register(email, password, name string) error {
 		return err
 	}
 
-	s.emailProducer.Send(kafka.EmailMessage{
+	s.emailProducer.SendAsync(kafka.EmailMessage{
 		Email:   email,
 		Subject: "Verify your account",
 		Code:    code,
