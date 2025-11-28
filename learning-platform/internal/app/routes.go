@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
@@ -12,7 +13,10 @@ import (
 )
 
 func SetupRouter(c *Container) *gin.Engine {
+	
 	router := gin.Default()
+	router.Use(otelgin.Middleware("learning-platform"))
+
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

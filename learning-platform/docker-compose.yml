@@ -65,5 +65,23 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ['--config=/etc/otel/config.yaml']
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+    ports:
+      - '14317:4317'
+      - '14318:4318'
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    ports:
+      - '16686:16686'
+      - '4317:4317'
+      - '4318:4318'
+
 volumes:
   db-data:

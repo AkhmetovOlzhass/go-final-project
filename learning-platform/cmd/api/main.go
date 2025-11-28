@@ -3,13 +3,16 @@ package main
 import (
 	"log"
 	"os"
-
-	"learning-platform/internal/app"
-
 	"github.com/joho/godotenv"
+	
+	"learning-platform/internal/app"
+	"learning-platform/internal/otelinit"
 )
 
 func main() {
+	shutdown := otelinit.Init("learning-platform")
+    defer shutdown()
+
 	_ = godotenv.Load(".env")
 
 	port := os.Getenv("PORT")
