@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 
 	"learning-platform/internal/middleware"
 )
@@ -15,6 +16,10 @@ import (
 func SetupRouter(c *Container) *gin.Engine {
 	
 	router := gin.Default()
+
+	p := ginprometheus.NewPrometheus("learning_platform")
+	p.Use(router)
+
 	router.Use(otelgin.Middleware("learning-platform"))
 
 	router.Use(cors.New(cors.Config{
