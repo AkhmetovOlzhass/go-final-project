@@ -1,0 +1,950 @@
+basePath: /api/v1
+definitions:
+  dto.AuthTokensResponse:
+    properties:
+      accessToken:
+        type: string
+      refreshToken:
+        type: string
+    type: object
+  dto.CreateTopicRequest:
+    properties:
+      parentId:
+        type: string
+      schoolClass:
+        type: string
+      slug:
+        type: string
+      title:
+        type: string
+    required:
+    - schoolClass
+    - slug
+    - title
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.MeResponse:
+    properties:
+      avatarUrl:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+    type: object
+  dto.RefreshRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  dto.RegisterRequest:
+    properties:
+      displayName:
+        type: string
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - displayName
+    - email
+    - password
+    type: object
+  dto.RegisterResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  dto.TaskResponse:
+    properties:
+      answerType:
+        type: string
+      authorId:
+        type: string
+      bodyMd:
+        type: string
+      correctAnswer:
+        type: string
+      createdAt:
+        type: string
+      difficulty:
+        type: string
+      id:
+        type: string
+      imageUrl:
+        type: string
+      officialSolution:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      topicId:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  dto.TopicResponse:
+    properties:
+      id:
+        type: string
+      parentId:
+        type: string
+      schoolClass:
+        type: string
+      slug:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.UpdateTopicRequest:
+    properties:
+      parentId:
+        type: string
+      schoolClass:
+        type: string
+      slug:
+        type: string
+      title:
+        type: string
+    required:
+    - schoolClass
+    - slug
+    - title
+    type: object
+  dto.UserResponse:
+    properties:
+      avatarUrl:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+    type: object
+  dto.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  dto.VerifyResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  response.ErrorMessage:
+    properties:
+      message:
+        type: string
+    type: object
+  response.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/response.ErrorMessage'
+      success:
+        example: false
+        type: boolean
+    type: object
+  response.SuccessWrapper:
+    properties:
+      data: {}
+      success:
+        example: true
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for Learning Platform — users, auth, tasks, topics
+  title: Learning Platform API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Returns access + refresh tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AuthTokensResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Login user
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns user info for current token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MeResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Returns new access + refresh tokens
+      parameters:
+      - description: Refresh token payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AuthTokensResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Refresh JWT tokens
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user and sends email verification code
+      parameters:
+      - description: Register payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RegisterResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /auth/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verifies user email via code
+      parameters:
+      - description: Verify email payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.VerifyResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Verify email
+      tags:
+      - auth
+  /tasks:
+    get:
+      description: Returns list of all published tasks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TaskResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get all published tasks
+      tags:
+      - tasks
+    post:
+      consumes:
+      - multipart/form-data
+      description: Create a task (multipart form with optional image)
+      parameters:
+      - description: Title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Markdown body
+        in: formData
+        name: body_md
+        required: true
+        type: string
+      - description: Difficulty
+        in: formData
+        name: difficulty
+        required: true
+        type: string
+      - description: Task status
+        in: formData
+        name: status
+        required: true
+        type: string
+      - description: Topic ID
+        in: formData
+        name: topicId
+        required: true
+        type: string
+      - description: Solution
+        in: formData
+        name: officialSolution
+        required: true
+        type: string
+      - description: Correct answer
+        in: formData
+        name: correctAnswer
+        required: true
+        type: string
+      - description: Answer type
+        in: formData
+        name: answerType
+        required: true
+        type: string
+      - description: Task image
+        in: formData
+        name: imageUrl
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TaskResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new task
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      description: Remove task by ID
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a task
+      tags:
+      - tasks
+    get:
+      description: Returns a single task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TaskResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get task by ID
+      tags:
+      - tasks
+    put:
+      consumes:
+      - multipart/form-data
+      description: Update task metadata + (optional) image
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Body
+        in: formData
+        name: body_md
+        required: true
+        type: string
+      - description: Difficulty
+        in: formData
+        name: difficulty
+        required: true
+        type: string
+      - description: Status
+        in: formData
+        name: status
+        required: true
+        type: string
+      - description: Topic ID
+        in: formData
+        name: topicId
+        required: true
+        type: string
+      - description: Solution
+        in: formData
+        name: officialSolution
+        required: true
+        type: string
+      - description: Correct answer
+        in: formData
+        name: correctAnswer
+        required: true
+        type: string
+      - description: Answer type
+        in: formData
+        name: answerType
+        required: true
+        type: string
+      - description: Task image
+        in: formData
+        name: imageUrl
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TaskResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a task
+      tags:
+      - tasks
+  /tasks/{id}/publish:
+    patch:
+      description: Changes task status to PUBLISHED
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TaskResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish a task
+      tags:
+      - tasks
+  /tasks/drafts:
+    get:
+      description: Returns tasks with status DRAFT
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TaskResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all draft tasks
+      tags:
+      - tasks
+  /tasks/my:
+    get:
+      description: Returns all tasks where author == current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TaskResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tasks created by current user
+      tags:
+      - tasks
+  /topics:
+    get:
+      description: Returns all topics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TopicResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get all topics
+      tags:
+      - topics
+    post:
+      consumes:
+      - application/json
+      description: Creates a new topic
+      parameters:
+      - description: Topic payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTopicRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TopicResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create topic
+      tags:
+      - topics
+  /topics/{id}:
+    delete:
+      description: Deletes topic by ID
+      parameters:
+      - description: Topic ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete topic
+      tags:
+      - topics
+    get:
+      description: Returns topic by ID
+      parameters:
+      - description: Topic ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TopicResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get topic by ID
+      tags:
+      - topics
+    put:
+      consumes:
+      - application/json
+      description: Updates topic by ID
+      parameters:
+      - description: Topic ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateTopicRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TopicResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update topic
+      tags:
+      - topics
+  /topics/{topicId}/tasks:
+    get:
+      description: Returns all tasks belonging to topic
+      parameters:
+      - description: Topic ID
+        in: path
+        name: topicId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TaskResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get tasks by topic
+      tags:
+      - tasks
+  /user/all:
+    get:
+      description: Returns list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.UserResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all users
+      tags:
+      - users
+  /user/profile:
+    get:
+      description: Returns profile of the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - users
+    put:
+      consumes:
+      - multipart/form-data
+      description: Updates profile fields and optionally uploads avatar
+      parameters:
+      - description: Updated email
+        in: formData
+        name: email
+        type: string
+      - description: Updated display name
+        in: formData
+        name: displayName
+        type: string
+      - description: Avatar image
+        in: formData
+        name: avatar
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - users
+swagger: "2.0"

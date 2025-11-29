@@ -35,6 +35,10 @@ tasks:
         powershell -NoLogo -NoProfile -Command "Start-Sleep -Seconds 10"
         echo "Done."
 
+  swagger:
+    cmds:
+      - swag init -g cmd/api/main.go
+
   # =============================
   # Docker
   # =============================

@@ -8,9 +8,12 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+    ginSwagger "github.com/swaggo/gin-swagger"
+    swaggerFiles "github.com/swaggo/files"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 
 	"learning-platform/internal/middleware"
+	_ "learning-platform/docs"
 )
 
 func SetupRouter(c *Container) *gin.Engine {
@@ -30,6 +33,8 @@ func SetupRouter(c *Container) *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	router.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "OK"})

@@ -1,3 +1,9 @@
+// @title Learning Platform API
+// @version 1.0
+// @description API for Learning Platform — users, auth, tasks, topics
+// @host localhost:8080
+// @BasePath /api/v1
+
 package main
 
 import (
