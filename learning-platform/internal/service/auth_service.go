@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+	"context"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"go.opentelemetry.io/otel"
 
 	"learning-platform/internal/kafka"
 	"learning-platform/internal/models"
@@ -59,155 +61,290 @@ func (s *AuthService) createJWT(userID uuid.UUID, role models.UserRole) (string,
 	return token.SignedString([]byte(s.secret))
 }
 
-func (s *AuthService) Register(email, password, name string) error {
-	existing, _ := s.users.FindByEmail(email)
-	if existing != nil {
-		return errors.New("email already registered")
+func (s *AuthService) Register(ctx context.Context, email, password, name string) error {
+	ctx, span := otel.Tracer("auth").Start(ctx, "AuthService.Register")
+	defer span.End()
+
+	_, checkSpan := otel.Tracer("auth").Start(ctx, "CheckExistingUser")
+	existing, _ := s.users.FindByEmail(ctx, email)
+	checkSpan.End()
+
+	if existing != nil && existing.Status == "ACTIVE" {
+		err := errors.New("email already registered")
+		span.RecordError(err)
+		return err
 	}
 
-	pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if existing != nil && existing.Status != "ACTIVE" {
+		_, codeSpan := otel.Tracer("auth").Start(ctx, "GenerateVerificationCode (resend)")
+		code, err := generateVerificationCode()
+		codeSpan.End()
 
+		if err != nil {
+			span.RecordError(err)
+			return err
+		}
+
+		_, verSpan := otel.Tracer("auth").Start(ctx, "DB.SaveVerification (resend)")
+		model := &models.EmailVerification{
+			ID:        uuid.New(),
+			UserID:    existing.ID,
+			Code:      code,
+			ExpiresAt: time.Now().Add(15 * time.Minute),
+		}
+		err = s.verifications.Create(ctx, model)
+		verSpan.End()
+
+		if err != nil {
+			span.RecordError(err)
+			return err
+		}
+
+		_, kSpan := otel.Tracer("kafka").Start(ctx, "Kafka.SendEmailCode (resend)")
+		s.emailProducer.SendAsync(kafka.EmailMessage{
+			Email:   email,
+			Subject: "Verify your account",
+			Code:    code,
+		})
+		kSpan.End()
+
+		return nil
+	}
+
+	_, createSpan := otel.Tracer("auth").Start(ctx, "DB.CreateUser")
+	pass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	user := &models.User{
 		Email:        email,
 		PasswordHash: string(pass),
 		DisplayName:  name,
 	}
+	err := s.users.Create(ctx, user);
+	createSpan.End()
 
-	if err := s.users.Create(user); err != nil {
-		return err
-	}
-
-	code, err := generateVerificationCode()
 	if err != nil {
+		span.RecordError(err)
 		return err
 	}
 
+	_, codeSpan := otel.Tracer("auth").Start(ctx, "GenerateVerificationCode")
+	code, err := generateVerificationCode()
+	codeSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	_, verSpan := otel.Tracer("auth").Start(ctx, "DB.SaveVerification")
 	model := &models.EmailVerification{
 		ID:        uuid.New(),
 		UserID:    user.ID,
 		Code:      code,
 		ExpiresAt: time.Now().Add(15 * time.Minute),
 	}
+	err = s.verifications.Create(ctx, model);
+	verSpan.End()
 
-	if err := s.verifications.Create(model); err != nil {
+	if err != nil {
+		span.RecordError(err)
 		return err
 	}
 
+	_, kSpan := otel.Tracer("kafka").Start(ctx, "Kafka.SendEmailCode")
 	s.emailProducer.SendAsync(kafka.EmailMessage{
 		Email:   email,
 		Subject: "Verify your account",
 		Code:    code,
 	})
+	kSpan.End()
 
 	return nil
 }
 
-func (s *AuthService) VerifyEmail(email, code string) error {
-	rec, err := s.verifications.FindValid(email, code)
+func (s *AuthService) VerifyEmail(ctx context.Context, email, code string) error {
+	ctx, span := otel.Tracer("auth").Start(ctx, "AuthService.VerifyEmail")
+	defer span.End()
+
+	_, findSpan := otel.Tracer("auth").Start(ctx, "Verification.FindValid")
+	rec, err := s.verifications.FindValid(ctx, email, code)
+	findSpan.End()
+
 	if err != nil {
+		span.RecordError(err)
 		return errors.New("invalid or expired code")
 	}
 
-	if err := s.verifications.MarkUsed(rec.ID); err != nil {
+	_, markSpan := otel.Tracer("auth").Start(ctx, "Verification.MarkUsed")
+	err = s.verifications.MarkUsed(ctx, rec.ID)
+	markSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
 		return err
 	}
 
-	userId := rec.UserID.String()
+	_, userSpan := otel.Tracer("auth").Start(ctx, "User.FindByID")
+	user, err := s.users.FindByID(ctx, rec.UserID.String())
+	userSpan.End()
 
-	user, err := s.users.FindByID(userId)
 	if err != nil || user == nil {
-		return errors.New("user not found")
+		err = errors.New("user not found")
+		span.RecordError(err)
+		return err
 	}
 
-	updateFields := map[string]interface{}{
-		"status": "ACTIVE",
+	_, updateSpan := otel.Tracer("auth").Start(ctx, "User.UpdateStatus")
+	err = s.users.Update(ctx, rec.UserID.String(), map[string]interface{}{"status": "ACTIVE"})
+	updateSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
+		return err
 	}
 
-	return s.users.Update(userId, updateFields)
+	return nil
 }
 
-func (s *AuthService) Login(email, password string) (string, string, error) {
-	user, err := s.users.FindByEmail(email)
-	if err != nil {
-		return "", "", fmt.Errorf("find user failed: %w", err)
-	}
-	if user == nil {
-		return "", "", errors.New("invalid credentials")
-	}
+func (s *AuthService) Login(ctx context.Context, email, password string) (string, string, error) {
+	ctx, span := otel.Tracer("auth").Start(ctx, "AuthService.Login")
+	defer span.End()
 
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
-		return "", "", errors.New("invalid credentials")
-	}
+	_, findSpan := otel.Tracer("auth").Start(ctx, "User.FindByEmail")
+	user, err := s.users.FindByEmail(ctx, email)
+	findSpan.End()
 
-	if user.Status != "ACTIVE" {
-		return "", "", errors.New("email not verified")
-	}
-
-	if err := s.tokens.RevokeAllForUser(user.ID); err != nil {
+	if err != nil || user == nil {
+		err := errors.New("invalid credentials")
+		span.RecordError(err)
 		return "", "", err
 	}
 
-	access, err := s.createJWT(user.ID, user.Role)
+	_, checkSpan := otel.Tracer("auth").Start(ctx, "Password.Verify")
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	checkSpan.End()
+
 	if err != nil {
+		err2 := errors.New("invalid credentials")
+		span.RecordError(err2)
+		return "", "", err2
+	}
+
+	if user.Status != "ACTIVE" {
+		err := errors.New("email not verified")
+		span.RecordError(err)
+		return "", "", err
+	}
+
+	_, revokeSpan := otel.Tracer("auth").Start(ctx, "RefreshTokens.RevokeAll")
+	err = s.tokens.RevokeAllForUser(ctx, user.ID)
+	revokeSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
+		return "", "", err
+	}
+
+	_, jwtSpan := otel.Tracer("auth").Start(ctx, "JWT.CreateAccess")
+	access, err := s.createJWT(user.ID, user.Role)
+	jwtSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
 		return "", "", err
 	}
 
 	rawRefresh := uuid.New().String()
-	saveModel := models.RefreshToken{
+
+	refreshModel := models.RefreshToken{
 		UserID:    user.ID,
 		TokenHash: s.generateHash(rawRefresh),
 		ExpiresAt: time.Now().Add(30 * 24 * time.Hour),
 	}
 
-	if err := s.tokens.Save(&saveModel); err != nil {
+	_, saveSpan := otel.Tracer("auth").Start(ctx, "RefreshTokens.Save")
+	err = s.tokens.Save(ctx, &refreshModel)
+	saveSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
 		return "", "", err
 	}
 
 	return access, rawRefresh, nil
 }
 
-func (s *AuthService) Refresh(oldRefresh string) (string, string, error) {
+func (s *AuthService) Refresh(ctx context.Context, oldRefresh string) (string, string, error) {
+	ctx, span := otel.Tracer("auth").Start(ctx, "AuthService.Refresh")
+	defer span.End()
+
 	hash := s.generateHash(oldRefresh)
 
-	token, err := s.tokens.FindValid(hash)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to read refresh token: %w", err)
-	}
-	if token == nil {
-		return "", "", errors.New("invalid refresh token")
-	}
+	_, findSpan := otel.Tracer("auth").Start(ctx, "RefreshTokens.FindValid")
+	token, err := s.tokens.FindValid(ctx, hash)
+	findSpan.End()
 
-	if err := s.tokens.Revoke(hash); err != nil {
+	if err != nil || token == nil {
+		err = errors.New("invalid refresh token")
+		span.RecordError(err)
 		return "", "", err
 	}
 
-	user, err := s.users.FindByID(token.UserID.String())
+	_, revokeSpan := otel.Tracer("auth").Start(ctx, "RefreshTokens.Revoke")
+	err = s.tokens.Revoke(ctx, hash)
+	revokeSpan.End()
+
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get user: %w", err)
-	}
-	if user == nil {
-		return "", "", errors.New("user not found")
+		span.RecordError(err)
+		return "", "", err
 	}
 
+	_, userSpan := otel.Tracer("auth").Start(ctx, "User.FindByID")
+	user, err := s.users.FindByID(ctx, token.UserID.String())
+	userSpan.End()
+
+	if err != nil || user == nil {
+		err = errors.New("user not found")
+		span.RecordError(err)
+		return "", "", err
+	}
+
+	_, accessSpan := otel.Tracer("auth").Start(ctx, "JWT.CreateAccess")
 	newAccess, err := s.createJWT(token.UserID, user.Role)
+	accessSpan.End()
+
 	if err != nil {
+		span.RecordError(err)
 		return "", "", err
 	}
 
 	newRefreshRaw := uuid.NewString()
-	newToken := &models.RefreshToken{
+	newModel := &models.RefreshToken{
 		UserID:    token.UserID,
 		TokenHash: s.generateHash(newRefreshRaw),
 		ExpiresAt: time.Now().Add(30 * 24 * time.Hour),
 	}
 
-	if err := s.tokens.Save(newToken); err != nil {
+	_, saveSpan := otel.Tracer("auth").Start(ctx, "RefreshTokens.SaveNew")
+	err = s.tokens.Save(ctx, newModel)
+	saveSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
 		return "", "", err
 	}
 
 	return newAccess, newRefreshRaw, nil
 }
 
-func (s *AuthService) GetUserByID(id string) (*models.User, error) {
-	return s.users.FindByID(id)
+func (s *AuthService) GetUserByID(ctx context.Context, id string) (*models.User, error) {
+	ctx, span := otel.Tracer("auth").Start(ctx, "AuthService.GetUserByID")
+	defer span.End()
+
+	user, err := s.users.FindByID(ctx, id)
+
+	if err != nil {
+		span.RecordError(err)
+	}
+
+	return user, err
 }

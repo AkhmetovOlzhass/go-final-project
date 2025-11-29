@@ -9,6 +9,7 @@ import (
 	"learning-platform/internal/email"
 
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
 )
 
 type EmailConsumer struct {
@@ -36,6 +37,9 @@ func (c *EmailConsumer) Start() {
 
 	for {
 		msg, err := c.reader.ReadMessage(context.Background())
+
+		ctx, span := otel.Tracer("consumer").Start(context.Background(), "EmailConsumer.HandleMessage")
+
 		if err != nil {
 			log.Println("Kafka read error:", err)
 			continue
@@ -47,13 +51,14 @@ func (c *EmailConsumer) Start() {
 			continue
 		}
 
+		_, emailSpan := otel.Tracer("email").Start(ctx, "SMTP.SendEmail")
 		body := fmt.Sprintf("Your code: %s", em.Code)
-
 		if err := c.sender.SendEmail(em.Email, em.Subject, body); err != nil {
 			log.Println("Email error:", err)
 			continue
 		}
 
-		log.Println("Sent to:", em.Email)
+		emailSpan.End()
+		span.End()
 	}
 }

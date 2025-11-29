@@ -20,13 +20,15 @@ func NewAuthHandler(a *service.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.auth.Register(req.Email, req.Password, req.DisplayName); err != nil {
+	if err := h.auth.Register(ctx, req.Email, req.Password, req.DisplayName); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -37,6 +39,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 func (h *AuthHandler) Verify(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req dto.VerifyEmailRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -44,7 +48,7 @@ func (h *AuthHandler) Verify(c *gin.Context) {
 		return
 	}
 
-	if err := h.auth.VerifyEmail(req.Email, req.Code); err != nil {
+	if err := h.auth.VerifyEmail(ctx, req.Email, req.Code); err != nil {
 		response.Error(c, 400, err.Error())
 		return
 	}
@@ -55,13 +59,15 @@ func (h *AuthHandler) Verify(c *gin.Context) {
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	access, refresh, err := h.auth.Login(req.Email, req.Password)
+	access, refresh, err := h.auth.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
@@ -74,13 +80,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Refresh(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req dto.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	access, refresh, err := h.auth.Refresh(req.RefreshToken)
+	access, refresh, err := h.auth.Refresh(ctx, req.RefreshToken)
 	if err != nil {
 		response.Error(c, http.StatusUnauthorized, err.Error())
 		return
@@ -93,8 +101,10 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	userID := c.GetString("userId")
-	user, err := h.auth.GetUserByID(userID)
+	user, err := h.auth.GetUserByID(ctx, userID)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "user not found")
 		return

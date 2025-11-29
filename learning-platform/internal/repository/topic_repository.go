@@ -1,46 +1,93 @@
 package repository
 
 import (
-    "learning-platform/internal/models"
-    "gorm.io/gorm"
+	"context"
+
+	"learning-platform/internal/models"
+
+	"go.opentelemetry.io/otel"
+	"gorm.io/gorm"
 )
 
 type ITopicRepository interface {
-    Create(topic *models.Topic) error
-    FindAll() ([]models.Topic, error)
-    FindByID(id string) (*models.Topic, error)
-    Update(topic *models.Topic) error
-    Delete(id string) error
+	Create(ctx context.Context, topic *models.Topic) error
+	FindAll(ctx context.Context) ([]models.Topic, error)
+	FindByID(ctx context.Context, id string) (*models.Topic, error)
+	Update(ctx context.Context, topic *models.Topic) error
+	Delete(ctx context.Context, id string) error
 }
 
 type TopicRepository struct {
-    db *gorm.DB
+	db *gorm.DB
 }
 
 func NewTopicRepository(db *gorm.DB) *TopicRepository {
-    return &TopicRepository{db: db}
+	return &TopicRepository{db: db}
 }
 
-func (r *TopicRepository) Create(topic *models.Topic) error {
-    return r.db.Create(topic).Error
+func (r *TopicRepository) Create(ctx context.Context, topic *models.Topic) error {
+	ctx, span := otel.Tracer("db").Start(ctx, "TopicRepository.Create")
+	defer span.End()
+
+	err := r.db.WithContext(ctx).Create(topic).Error
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	return nil
 }
 
-func (r *TopicRepository) FindAll() ([]models.Topic, error) {
-    var topics []models.Topic
-    err := r.db.Find(&topics).Error
-    return topics, err
+func (r *TopicRepository) FindAll(ctx context.Context) ([]models.Topic, error) {
+	ctx, span := otel.Tracer("db").Start(ctx, "TopicRepository.FindAll")
+	defer span.End()
+
+	var topics []models.Topic
+	err := r.db.WithContext(ctx).Find(&topics).Error
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	return topics, nil
 }
 
-func (r *TopicRepository) FindByID(id string) (*models.Topic, error) {
-    var topic models.Topic
-    err := r.db.First(&topic, "id = ?", id).Error
-    return &topic, err
+func (r *TopicRepository) FindByID(ctx context.Context, id string) (*models.Topic, error) {
+	ctx, span := otel.Tracer("db").Start(ctx, "TopicRepository.FindByID")
+	defer span.End()
+
+	var topic models.Topic
+	err := r.db.WithContext(ctx).First(&topic, "id = ?", id).Error
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	return &topic, nil
 }
 
-func (r *TopicRepository) Update(topic *models.Topic) error {
-    return r.db.Save(topic).Error
+func (r *TopicRepository) Update(ctx context.Context, topic *models.Topic) error {
+	ctx, span := otel.Tracer("db").Start(ctx, "TopicRepository.Update")
+	defer span.End()
+
+	err := r.db.WithContext(ctx).Save(topic).Error
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	return nil
 }
 
-func (r *TopicRepository) Delete(id string) error {
-    return r.db.Delete(&models.Topic{}, "id = ?", id).Error
+func (r *TopicRepository) Delete(ctx context.Context, id string) error {
+	ctx, span := otel.Tracer("db").Start(ctx, "TopicRepository.Delete")
+	defer span.End()
+
+	err := r.db.WithContext(ctx).Delete(&models.Topic{}, "id = ?", id).Error
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	return nil
 }

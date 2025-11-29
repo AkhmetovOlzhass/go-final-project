@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
 )
 
 type EmailMessage struct {
@@ -16,9 +17,14 @@ type EmailMessage struct {
 	Code    string `json:"code"`
 }
 
+type queuedMessage struct {
+	ctx context.Context
+	msg EmailMessage
+}
+
 type EmailProducer struct {
 	writer *kafka.Writer
-	queue  chan EmailMessage
+	queue  chan queuedMessage
 }
 
 func NewEmailProducer() *EmailProducer {
@@ -36,7 +42,7 @@ func NewEmailProducer() *EmailProducer {
 
 	p := &EmailProducer{
 		writer: w,
-		queue:  make(chan EmailMessage, 100),
+		queue:  make(chan queuedMessage, 100),
 	}
 
 	go p.worker()
@@ -47,17 +53,19 @@ func NewEmailProducer() *EmailProducer {
 }
 
 func (p *EmailProducer) SendAsync(msg EmailMessage) {
+	detachedCtx := context.Background()
+
 	select {
-	case p.queue <- msg:
+	case p.queue <- queuedMessage{ctx: detachedCtx , msg: msg}:
 	default:
-		log.Println("[WARN] EmailProducer queue full — message dropped:", msg.Email)
+		log.Println("[WARN] EmailProducer queue full — dropped:", msg.Email)
 	}
 }
 
 func (p *EmailProducer) worker() {
-	for msg := range p.queue {
+	for qm := range p.queue {
 		for {
-			err := p.sendToKafka(msg)
+			err := p.sendToKafka(qm.ctx, qm.msg)
 			if err != nil {
 				log.Println("[Producer Worker] Kafka send failed, retrying:", err)
 				time.Sleep(2 * time.Second)
@@ -68,11 +76,14 @@ func (p *EmailProducer) worker() {
 	}
 }
 
-func (p *EmailProducer) sendToKafka(msg EmailMessage) error {
+func (p *EmailProducer) sendToKafka(ctx context.Context, msg EmailMessage) error {
+	ctx, span := otel.Tracer("kafka").Start(ctx, "Producer.WriteMessage")
+	defer span.End()
+
 	body, _ := json.Marshal(msg)
 
 	err := p.writer.WriteMessages(
-		context.Background(),
+		ctx,
 		kafka.Message{
 			Key:   []byte(msg.Email),
 			Value: body,
@@ -81,10 +92,8 @@ func (p *EmailProducer) sendToKafka(msg EmailMessage) error {
 	)
 
 	if err != nil {
-		log.Println("[Producer ERROR]", err)
+		span.RecordError(err)
 		return err
 	}
-
-	log.Println("[Producer] sent ->", msg.Email)
 	return nil
 }

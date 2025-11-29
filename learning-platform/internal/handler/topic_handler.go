@@ -19,6 +19,8 @@ func NewTopicHandler(topicService *service.TopicService) *TopicHandler {
 }
 
 func (h *TopicHandler) Create(c *gin.Context) {
+    ctx := c.Request.Context()
+
     var req dto.CreateTopicRequest
 
     if err := c.ShouldBindJSON(&req); err != nil {
@@ -34,7 +36,7 @@ func (h *TopicHandler) Create(c *gin.Context) {
     }
 
     
-    if err := h.topicService.CreateTopic(topic); err != nil {
+    if err := h.topicService.CreateTopic(ctx, topic); err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }
@@ -43,7 +45,9 @@ func (h *TopicHandler) Create(c *gin.Context) {
 }
 
 func (h *TopicHandler) GetAll(c *gin.Context) {
-    topics, err := h.topicService.GetAllTopics()
+    ctx := c.Request.Context()
+
+    topics, err := h.topicService.GetAllTopics(ctx)
     if err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
@@ -52,8 +56,10 @@ func (h *TopicHandler) GetAll(c *gin.Context) {
 }
 
 func (h *TopicHandler) GetByID(c *gin.Context) {
+    ctx := c.Request.Context()
+
     id := c.Param("id")
-    topic, err := h.topicService.GetTopicById(id)
+    topic, err := h.topicService.GetTopicById(ctx, id)
     if err != nil {
         response.Error(c, http.StatusNotFound, "Not found")
         return
@@ -62,6 +68,8 @@ func (h *TopicHandler) GetByID(c *gin.Context) {
 }
 
 func (h *TopicHandler) Update(c *gin.Context) {
+    ctx := c.Request.Context()
+
     id := c.Param("id")
 
     var req dto.UpdateTopicRequest
@@ -78,12 +86,12 @@ func (h *TopicHandler) Update(c *gin.Context) {
         SchoolClass: req.SchoolClass,
     }
 
-    if err := h.topicService.UpdateTopic(&topic); err != nil {
+    if err := h.topicService.UpdateTopic(ctx, &topic); err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }
 
-    finalTopic, err := h.topicService.GetTopicById(id)
+    finalTopic, err := h.topicService.GetTopicById(ctx, id)
 
     if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch updated task")
@@ -94,15 +102,17 @@ func (h *TopicHandler) Update(c *gin.Context) {
 }
 
 func (h *TopicHandler) Delete(c *gin.Context) {
+    ctx := c.Request.Context()
+    
     id := c.Param("id")
 
-    _, err := h.topicService.GetTopicById(id)
+    _, err := h.topicService.GetTopicById(ctx, id)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "Topic not found")
 		return
 	}
 
-    if err := h.topicService.DeleteTopic(id); err != nil {
+    if err := h.topicService.DeleteTopic(ctx, id); err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return
     }

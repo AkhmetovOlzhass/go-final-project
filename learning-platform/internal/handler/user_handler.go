@@ -21,7 +21,9 @@ func NewUserHandler(userService *service.UserService, s3 *service.S3Service) *Us
 }
 
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
-    users, err := h.userService.GetAllUsers()
+    ctx := c.Request.Context()
+
+    users, err := h.userService.GetAllUsers(ctx)
     if err != nil {
         response.Error(c, http.StatusInternalServerError, "Failed to fetch users")
         return
@@ -33,8 +35,10 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 
 
 func (h *UserHandler) GetProfile(c *gin.Context) {
+    ctx := c.Request.Context()
+
 	userID := c.GetString("userId")
-	user, err := h.userService.FindByID(userID)
+	user, err := h.userService.FindByID(ctx, userID)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "User not found")
 		return
@@ -44,6 +48,8 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 }
 
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
+    ctx := c.Request.Context()
+
     userID := c.GetString("userId")
 
     var req dto.UpdateProfileRequest
@@ -55,7 +61,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
     var avatarURL *string
     file, _ := c.FormFile("avatar")
     if file != nil {
-        url, uploadErr := h.s3.UploadFile(file)
+        url, uploadErr := h.s3.UploadFile(ctx, file)
         if uploadErr != nil {
             response.Error(c, http.StatusInternalServerError, "Failed to upload avatar")
             return
@@ -63,7 +69,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
         avatarURL = &url
     }
 
-    updatedProfile, err := h.userService.Update(userID, req.Email, req.DisplayName, avatarURL)
+    updatedProfile, err := h.userService.Update(ctx, userID, req.Email, req.DisplayName, avatarURL)
     if err != nil {
         response.Error(c, http.StatusInternalServerError, err.Error())
         return

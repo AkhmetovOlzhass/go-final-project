@@ -23,7 +23,9 @@ func NewTaskHandler(taskService *service.TaskService, s3 *service.S3Service) *Ta
 }
 
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
-	tasks, err := h.taskService.GetAllTasks()
+	ctx := c.Request.Context()
+	
+	tasks, err := h.taskService.GetAllTasks(ctx)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch tasks")
 		return
@@ -33,7 +35,9 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetDraftTasks(c *gin.Context) {
-	tasks, err := h.taskService.GetDraftTasks()
+	ctx := c.Request.Context()
+
+	tasks, err := h.taskService.GetDraftTasks(ctx)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch draft tasks")
 		return
@@ -43,8 +47,10 @@ func (h *TaskHandler) GetDraftTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) PublishTask(c *gin.Context) {
+	ctx := c.Request.Context()
+
     id := c.Param("id")
-	t, err := h.taskService.PublishTask(id);
+	t, err := h.taskService.PublishTask(ctx, id);
     if  err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to publish task")
         return
@@ -56,6 +62,8 @@ func (h *TaskHandler) PublishTask(c *gin.Context) {
 
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req dto.CreateTaskRequest
 
 	if err := c.ShouldBindWith(&req, binding.FormMultipart); err != nil {
@@ -68,7 +76,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var imageURL string
 	file, err := c.FormFile("imageUrl") 
 	if err == nil && file != nil {
-		url, uploadErr := h.s3.UploadFile(file)
+		url, uploadErr := h.s3.UploadFile(ctx, file)
 		if uploadErr != nil {
 			response.Error(c, http.StatusInternalServerError, "failed to upload image")
 			return
@@ -89,7 +97,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		ImageURL:         imageURL,
 	}
 
-	if err := h.taskService.CreateTask(task); err != nil {
+	if err := h.taskService.CreateTask(ctx, task); err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to create task")
 		return
 	}
@@ -99,9 +107,11 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 
 func (h *TaskHandler) GetTask(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	id := c.Param("id")
 
-	task, err := h.taskService.GetTaskById(id)
+	task, err := h.taskService.GetTaskById(ctx, id)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "Task not found")
 		return
@@ -111,9 +121,11 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetTasksByTopic(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	topicID := c.Param("topicId")
 
-	tasks, err := h.taskService.GetTasksByTopic(topicID)
+	tasks, err := h.taskService.GetTasksByTopic(ctx, topicID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
@@ -123,6 +135,8 @@ func (h *TaskHandler) GetTasksByTopic(c *gin.Context) {
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
+	ctx := c.Request.Context()
+
     id := c.Param("id")
 
     var req dto.UpdateTaskRequest
@@ -133,7 +147,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 	userID := c.GetString("userId")
 
-	existing, err := h.taskService.GetTaskById(id)
+	existing, err := h.taskService.GetTaskById(ctx, id)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "Task not found")
 		return
@@ -143,7 +157,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
     file, err := c.FormFile("imageUrl")
     if err == nil && file != nil {
-        url, uploadErr := h.s3.UploadFile(file)
+        url, uploadErr := h.s3.UploadFile(ctx, file)
         if uploadErr != nil {
             response.Error(c, http.StatusInternalServerError, "failed to upload image")
             return
@@ -165,12 +179,12 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
         ImageURL:         imageURL,
     }
 
-    if err := h.taskService.UpdateTask(updated); err != nil {
+    if err := h.taskService.UpdateTask(ctx, updated); err != nil {
         response.Error(c, http.StatusInternalServerError, "Failed to update task")
         return
     }
 
-    finalTask, err := h.taskService.GetTaskById(id)
+    finalTask, err := h.taskService.GetTaskById(ctx, id)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch updated task")
@@ -183,15 +197,17 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	id := c.Param("id")
 
-	_, err := h.taskService.GetTaskById(id)
+	_, err := h.taskService.GetTaskById(ctx, id)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "Task not found")
 		return
 	}
 
-	if err := h.taskService.DeleteTask(id); err != nil {
+	if err := h.taskService.DeleteTask(ctx, id); err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to delete task")
 		return
 	}
@@ -200,9 +216,11 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetMyTasks(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	userID := c.GetString("userId")
 
-	tasks, err := h.taskService.GetTasksByAuthor(userID)
+	tasks, err := h.taskService.GetTasksByAuthor(ctx, userID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to fetch tasks")
 		return
