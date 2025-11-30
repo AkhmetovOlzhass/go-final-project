@@ -5,19 +5,19 @@ import (
 	"os"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-    ginSwagger "github.com/swaggo/gin-swagger"
-    swaggerFiles "github.com/swaggo/files"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
-	"learning-platform/internal/middleware"
 	_ "learning-platform/docs"
+	"learning-platform/internal/middleware"
 )
 
 func SetupRouter(c *Container) *gin.Engine {
-	
+
 	router := gin.Default()
 
 	p := ginprometheus.NewPrometheus("learning_platform")
@@ -63,7 +63,7 @@ func SetupRouter(c *Container) *gin.Engine {
 		topic.GET("/:id", c.TopicHandler.GetByID)
 
 		protectedTopic := topic.Group("")
-		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin"))
+		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin", "Student"))
 		{
 			protectedTopic.POST("", c.TopicHandler.Create)
 			protectedTopic.PUT("/:id", c.TopicHandler.Update)
