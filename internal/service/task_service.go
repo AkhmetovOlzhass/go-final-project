@@ -6,25 +6,43 @@ import (
 	"learning-platform/internal/models"
 	"learning-platform/internal/repository"
 	"go.opentelemetry.io/otel"
+	"github.com/redis/go-redis/v9"
+	"encoding/json"
+	"time"
 )
 
 type TaskService struct {
 	taskRepo repository.ITaskRepository
+	redis *redis.Client
 }
 
-func NewTaskService(taskRepo repository.ITaskRepository) *TaskService {
-	return &TaskService{taskRepo: taskRepo}
+func NewTaskService(repo repository.ITaskRepository, rdb *redis.Client) *TaskService {
+  return &TaskService{
+    taskRepo:  repo,
+    redis: rdb,
+  }
 }
 
 func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
 	ctx, span := otel.Tracer("task").Start(ctx, "TaskService.GetAllTasks")
 	defer span.End()
 
+	cacheKey := "tasks:all"
+	if cached, err := s.redis.Get(ctx, cacheKey).Result(); err == nil {
+		var tasks []models.Task
+		if err := json.Unmarshal([]byte(cached), &tasks); err == nil {
+		return tasks, nil
+		}
+	}
+
 	tasks, err := s.taskRepo.GetAll(ctx)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
+
+	data, _ := json.Marshal(tasks)
+  	s.redis.Set(ctx, cacheKey, data, 10*time.Minute)
 
 	return tasks, nil
 }
@@ -57,7 +75,7 @@ func (s *TaskService) PublishTask(ctx context.Context, id string) (*models.Task,
 		span.RecordError(err)
 		return nil, err
 	}
-
+	s.redis.Del(context.Background(), "tasks:all")
 	return task, nil
 }
 
@@ -70,7 +88,7 @@ func (s *TaskService) CreateTask(ctx context.Context, task *models.Task) error {
 		span.RecordError(err)
 		return err
 	}
-
+	s.redis.Del(context.Background(), "tasks:all")
 	return nil
 }
 
@@ -109,7 +127,7 @@ func (s *TaskService) UpdateTask(ctx context.Context, task *models.Task) error {
 		span.RecordError(err)
 		return err
 	}
-
+	s.redis.Del(context.Background(), "tasks:all")
 	return nil
 }
 
@@ -122,7 +140,7 @@ func (s *TaskService) DeleteTask(ctx context.Context, id string) error {
 		span.RecordError(err)
 		return err
 	}
-
+	s.redis.Del(context.Background(), "tasks:all")
 	return nil
 }
 
