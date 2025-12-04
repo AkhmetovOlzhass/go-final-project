@@ -3,24 +3,25 @@ package service
 import (
 	"context"
 
+	"encoding/json"
 	"learning-platform/internal/models"
 	"learning-platform/internal/repository"
-	"go.opentelemetry.io/otel"
-	"github.com/redis/go-redis/v9"
-	"encoding/json"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
 )
 
 type TaskService struct {
 	taskRepo repository.ITaskRepository
-	redis *redis.Client
+	redis    *redis.Client
 }
 
 func NewTaskService(repo repository.ITaskRepository, rdb *redis.Client) *TaskService {
-  return &TaskService{
-    taskRepo:  repo,
-    redis: rdb,
-  }
+	return &TaskService{
+		taskRepo: repo,
+		redis:    rdb,
+	}
 }
 
 func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
@@ -31,7 +32,7 @@ func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
 	if cached, err := s.redis.Get(ctx, cacheKey).Result(); err == nil {
 		var tasks []models.Task
 		if err := json.Unmarshal([]byte(cached), &tasks); err == nil {
-		return tasks, nil
+			return tasks, nil
 		}
 	}
 
@@ -42,7 +43,7 @@ func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
 	}
 
 	data, _ := json.Marshal(tasks)
-  	s.redis.Set(ctx, cacheKey, data, 10*time.Minute)
+	s.redis.Set(ctx, cacheKey, data, 10*time.Minute)
 
 	return tasks, nil
 }

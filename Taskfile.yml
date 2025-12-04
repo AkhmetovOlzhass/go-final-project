@@ -39,6 +39,11 @@ tasks:
     cmds:
       - swag init -g cmd/api/main.go
 
+  test:
+    desc: 'Run tests'
+    cmds:
+      - go test ./internal/kafka ./internal/handler ./internal/service
+
   # =============================
   # Docker
   # =============================
