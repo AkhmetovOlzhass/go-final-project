@@ -23,3 +23,14 @@ type UpdateTaskRequest struct {
     CorrectAnswer    string            `form:"correctAnswer"`
     AnswerType       models.AnswerType `form:"answerType" binding:"required"`
 }
+
+
+// TaskSubmitRequest - запрос на проверку ответа
+type TaskSubmitRequest struct {
+    Answer string `json:"answer" binding:"required"`
+}
+
+// TaskSubmitResponse - ответ на проверку ответа
+type TaskSubmitResponse struct {
+    Correct bool `json:"correct"`
+}
