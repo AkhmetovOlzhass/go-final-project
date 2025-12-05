@@ -157,3 +157,18 @@ func (s *TaskService) GetTasksByAuthor(ctx context.Context, authorID string) ([]
 
 	return tasks, nil
 }
+
+func (s *TaskService) SubmitAnswer(ctx context.Context, id string, userAnswer string) (bool, error) {
+    ctx, span := otel.Tracer("task").Start(ctx, "TaskService.SubmitAnswer")
+    defer span.End()
+
+    task, err := s.taskRepo.GetByID(ctx, id)
+    if err != nil {
+        span.RecordError(err)
+        return false, err
+    }
+
+    isCorrect := task.CorrectAnswer == userAnswer
+
+    return isCorrect, nil
+}

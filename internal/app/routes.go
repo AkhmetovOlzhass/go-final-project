@@ -86,6 +86,8 @@ func SetupRouter(c *Container) *gin.Engine {
 			protectedTasks.POST("", c.TaskHandler.CreateTask)
 			protectedTasks.PUT("/:id", c.TaskHandler.UpdateTask)
 			protectedTasks.DELETE("/:id", c.TaskHandler.DeleteTask)
+
+			protectedTasks.POST("/:id/submit", c.TaskHandler.SubmitTaskAnswer)
 		}
 	}
 

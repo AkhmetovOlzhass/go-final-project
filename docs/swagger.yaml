@@ -100,6 +100,18 @@ definitions:
       updatedAt:
         type: string
     type: object
+  dto.TaskSubmitRequest:
+    properties:
+      answer:
+        type: string
+    required:
+    - answer
+    type: object
+  dto.TaskSubmitResponse:
+    properties:
+      correct:
+        type: boolean
+    type: object
   dto.TopicResponse:
     properties:
       id:
@@ -605,6 +617,52 @@ paths:
       security:
       - BearerAuth: []
       summary: Publish a task
+      tags:
+      - tasks
+  /tasks/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Check if user's answer is correct
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User's answer
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TaskSubmitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TaskSubmitResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit answer for a task
       tags:
       - tasks
   /tasks/drafts:

@@ -333,3 +333,43 @@ func (h *TaskHandler) GetMyTasks(c *gin.Context) {
 
 	response.Success(c, mapper.ToTaskList(tasks))
 }
+
+// SubmitTaskAnswer godoc
+// @Summary Submit answer for a task
+// @Tags tasks
+// @Description Check if user's answer is correct
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body dto.TaskSubmitRequest true "User's answer"
+// @Success 200 {object} response.SuccessWrapper{data=dto.TaskSubmitResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Security BearerAuth
+// @Router /tasks/{id}/submit [post]
+func (h *TaskHandler) SubmitTaskAnswer(c *gin.Context) {
+    ctx := c.Request.Context()
+
+    id := c.Param("id")
+
+    var req dto.TaskSubmitRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        response.Error(c, http.StatusBadRequest, "Invalid request body")
+        return
+    }
+
+    isCorrect, err := h.taskService.SubmitAnswer(ctx, id, req.Answer)
+    if err != nil {
+        if err.Error() == "record not found" {
+            response.Error(c, http.StatusNotFound, "Task not found")
+        } else {
+            response.Error(c, http.StatusInternalServerError, "Failed to check answer")
+        }
+        return
+    }
+
+    response.Success(c, dto.TaskSubmitResponse{
+        Correct: isCorrect,
+    })
+}
