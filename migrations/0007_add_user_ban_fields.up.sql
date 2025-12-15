@@ -1,0 +1,12 @@
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'isbanned') THEN
+        CREATE TYPE isbanned AS ENUM ('ACTIVE', 'BANNED');
+    END IF;
+END$$;
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_banned isbanned NOT NULL DEFAULT 'ACTIVE',
+    ADD COLUMN IF NOT EXISTS banned_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS ban_reason TEXT;

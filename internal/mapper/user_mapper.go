@@ -24,3 +24,13 @@ func ToUserList(users []models.User) []dto.UserResponse {
     }
     return result
 }
+
+func ToBanProfileResponse(u *models.User) dto.BanProfilePayload {
+  return dto.BanProfilePayload{
+    UserID:      u.ID.String(),
+    IsBanned:      string(u.IsBanned),
+    BannedAt:    u.BannedAt,
+    BannedUntil: u.BannedUntil,
+    BannedReason: u.BanReason,
+  }
+}

@@ -8,6 +8,7 @@ import (
 	"learning-platform/internal/models"
 	"learning-platform/internal/repository"
     "go.opentelemetry.io/otel"
+	"time"
 )
 
 type UserService struct {
@@ -96,4 +97,45 @@ func (s *UserService) Update(ctx context.Context, id string, email, displayName 
 	}
 
 	return updated, nil
+}
+
+func (s *UserService) BanProfile(
+  	ctx context.Context,
+ 	id string,
+  	reason *string,
+  	until *time.Time,
+) (*models.User, error) {
+
+  	ctx, span := otel.Tracer("user").Start(ctx, "UserService.BanUser")
+ 	defer span.End()
+
+	user, err := s.users.FindByID(ctx, id)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	if user == nil {
+		return nil, nil
+	}
+
+	now := time.Now()
+
+	updates := map[string]interface{}{
+		"is_banned":  "BANNED",
+		"banned_at":  now,
+		"ban_reason": reason,
+	}
+
+	if until != nil {
+		updates["banned_until"] = until
+	} else {
+		updates["banned_until"] = nil
+	}
+
+	if err := s.users.Update(ctx, id, updates); err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	return s.users.FindByID(ctx, id)
 }
