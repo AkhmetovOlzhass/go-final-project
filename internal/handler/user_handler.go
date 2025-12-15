@@ -109,3 +109,42 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	response.Success(c, mapper.ToUserResponse(updatedProfile))
 }
+
+// BanUser godoc
+// @Summary Ban user
+// @Tags admin-users
+// @Description Ban user by id
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param body body dto.BanUserRequest true "Ban payload"
+// @Success 200 {object} response.SuccessWrapper{data=dto.UserResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Security BearerAuth
+// @Router /user/{id}/ban [post]
+func (h *UserHandler) BanProfile(c *gin.Context) {
+  ctx := c.Request.Context()
+  userID := c.Param("id")
+
+  var req dto.BanProfileRequest
+  if err := c.ShouldBindJSON(&req); err != nil {
+    response.Error(c, http.StatusBadRequest, err.Error())
+    return
+  }
+
+  user, err := h.userService.BanProfile(ctx, userID, req.BannedReason, req.BannedUntil)
+  if err != nil {
+    response.Error(c, http.StatusInternalServerError, err.Error())
+    return
+  }
+
+  if user == nil {
+    response.Error(c, http.StatusNotFound, "User not found")
+    return
+  }
+
+  response.Success(c, mapper.ToUserResponse(user))
+}
+

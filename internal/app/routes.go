@@ -50,20 +50,27 @@ func SetupRouter(c *Container) *gin.Engine {
 		auth.POST("/refresh", c.AuthHandler.Refresh)
 	}
 
-	user := api.Group("/user", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
-	{
+	user := api.Group("/user", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.BanMiddleware(c.UserService))
+	{	
 		user.GET("/profile", c.UserHandler.GetProfile)
 		user.PUT("/profile", c.UserHandler.UpdateProfile)
 		user.GET("/all", c.UserHandler.GetAllUsers)
+
+		protectedUser := user.Group("")
+		protectedUser.Use(middleware.RoleMiddleware("Admin"))
+		{
+			protectedUser.POST("/:id/ban", c.UserHandler.BanProfile)
+			// protectedUser.POST("/:id/unban", c.UserHandler.UnbanProfile)
+		}
 	}
 
-	topic := api.Group("/topics", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
+	topic := api.Group("/topics", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")),middleware.BanMiddleware(c.UserService))
 	{
 		topic.GET("", c.TopicHandler.GetAll)
 		topic.GET("/:id", c.TopicHandler.GetByID)
 
 		protectedTopic := topic.Group("")
-		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin", "Student"))
+		protectedTopic.Use(middleware.RoleMiddleware("Teacher", "Admin"))
 		{
 			protectedTopic.POST("", c.TopicHandler.Create)
 			protectedTopic.PUT("/:id", c.TopicHandler.Update)
@@ -71,7 +78,7 @@ func SetupRouter(c *Container) *gin.Engine {
 		}
 	}
 
-	tasks := api.Group("/tasks", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
+	tasks := api.Group("/tasks", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")),middleware.BanMiddleware(c.UserService))
 	{
 		tasks.GET("", c.TaskHandler.GetAllTasks)
 		tasks.GET("/drafts", c.TaskHandler.GetDraftTasks)

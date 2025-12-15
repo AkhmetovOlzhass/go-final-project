@@ -9,6 +9,7 @@ import (
 
 type UserRole string
 type UserStatus string
+type IsBanned string
 
 const (
 	UserRoleAdmin   UserRole = "Admin"
@@ -21,6 +22,11 @@ const (
 	UserStatusActive  UserStatus = "ACTIVE"
 )
 
+const (
+  IsBannedActive IsBanned = "ACTIVE"
+  IsBannedBanned IsBanned = "BANNED"
+)
+
 type User struct {
 	ID           uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 	DisplayName  string         `gorm:"type:varchar(255)"`
@@ -31,5 +37,9 @@ type User struct {
 	Status       UserStatus     `gorm:"type:userStatus;default:'PENDING';not null"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt    time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	DeletedAt    gorm.DeletedAt `gorm:"index"`	
+	IsBanned     IsBanned       `gorm:"type:isBanned;default:'ACTIVE';not null"`
+	BannedAt     *time.Time
+	BannedUntil  *time.Time
+	BanReason    *string
 }

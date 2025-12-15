@@ -17,6 +17,8 @@ type Container struct {
 	TaskHandler  *handler.TaskHandler
 	TopicHandler *handler.TopicHandler
 	Redis        *redis.Client
+	UserService  *service.UserService
+
 }
 
 func NewContainer(jwtSecret string) *Container {
@@ -61,5 +63,6 @@ func NewContainer(jwtSecret string) *Container {
 		TaskHandler:  taskHandler,
 		TopicHandler: topicHandler,
 		Redis:        rdb,
+		UserService:  userService,
 	}
 }
