@@ -20,7 +20,6 @@ func SuccessWithStatus(c *gin.Context, status int, data interface{}) {
 }
 
 func Error(c *gin.Context, status int, message string) {
-	log.Println("ERROR:", message)
 	c.JSON(status, gin.H{
 		"success": false,
 		"error": gin.H{
