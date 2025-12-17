@@ -6,10 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 
-	"learning-platform/internal/service"
-	"learning-platform/internal/response"
-	"learning-platform/internal/mapper"
 	"learning-platform/internal/dto"
+	"learning-platform/internal/mapper"
+	"learning-platform/internal/response"
+	"learning-platform/internal/service"
 )
 
 type UserHandler struct {
@@ -117,34 +117,62 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Param body body dto.BanUserRequest true "Ban payload"
-// @Success 200 {object} response.SuccessWrapper{data=dto.UserResponse}
+// @Param body body dto.BanProfileRequest true "Ban payload"
+// @Success 200 {object} response.SuccessWrapper{data=dto.BanProfileResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Security BearerAuth
 // @Router /user/{id}/ban [post]
 func (h *UserHandler) BanProfile(c *gin.Context) {
-  ctx := c.Request.Context()
-  userID := c.Param("id")
+	ctx := c.Request.Context()
+	userID := c.Param("id")
 
-  var req dto.BanProfileRequest
-  if err := c.ShouldBindJSON(&req); err != nil {
-    response.Error(c, http.StatusBadRequest, err.Error())
-    return
-  }
+	var req dto.BanProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
 
-  user, err := h.userService.BanProfile(ctx, userID, req.BannedReason, req.BannedUntil)
-  if err != nil {
-    response.Error(c, http.StatusInternalServerError, err.Error())
-    return
-  }
+	user, err := h.userService.BanProfile(ctx, userID, req.BannedReason, req.BannedUntil)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
 
-  if user == nil {
-    response.Error(c, http.StatusNotFound, "User not found")
-    return
-  }
+	if user == nil {
+		response.Error(c, http.StatusNotFound, "User not found")
+		return
+	}
 
-  response.Success(c, mapper.ToUserResponse(user))
+	response.Success(c, mapper.ToBanProfileResponse(user))
 }
 
+// UnbanUser godoc
+// @Summary Unban user
+// @Tags admin-users
+// @Description Remove ban from user by id
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} response.SuccessWrapper{data=dto.UserResponse}
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Security BearerAuth
+// @Router /user/{id}/unban [post]
+func (h *UserHandler) UnbanProfile(c *gin.Context) {
+	ctx := c.Request.Context()
+	userID := c.Param("id")
+
+	user, err := h.userService.UnbanProfile(ctx, userID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if user == nil {
+		response.Error(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	response.Success(c, mapper.ToUserResponse(user))
+}

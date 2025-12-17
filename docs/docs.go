@@ -1364,6 +1364,140 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/user/{id}/ban": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Ban user by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-users"
+                ],
+                "summary": "Ban user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ban payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BanProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessWrapper"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.BanProfileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{id}/unban": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove ban from user by id",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-users"
+                ],
+                "summary": "Unban user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessWrapper"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1374,6 +1508,37 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "refreshToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BanProfileRequest": {
+            "type": "object",
+            "properties": {
+                "bannedReason": {
+                    "type": "string"
+                },
+                "bannedUntil": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BanProfileResponse": {
+            "type": "object",
+            "properties": {
+                "bannedAt": {
+                    "type": "string"
+                },
+                "bannedReason": {
+                    "type": "string"
+                },
+                "bannedUntil": {
+                    "type": "string"
+                },
+                "isBanned": {
+                    "type": "string"
+                },
+                "userId": {
                     "type": "string"
                 }
             }
@@ -1592,6 +1757,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "isBanned": {
                     "type": "string"
                 },
                 "role": {

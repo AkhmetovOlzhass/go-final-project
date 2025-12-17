@@ -7,6 +7,26 @@ definitions:
       refreshToken:
         type: string
     type: object
+  dto.BanProfileRequest:
+    properties:
+      bannedReason:
+        type: string
+      bannedUntil:
+        type: string
+    type: object
+  dto.BanProfileResponse:
+    properties:
+      bannedAt:
+        type: string
+      bannedReason:
+        type: string
+      bannedUntil:
+        type: string
+      isBanned:
+        type: string
+      userId:
+        type: string
+    type: object
   dto.CreateTopicRequest:
     properties:
       parentId:
@@ -149,6 +169,8 @@ definitions:
       email:
         type: string
       id:
+        type: string
+      isBanned:
         type: string
       role:
         type: string
@@ -913,6 +935,86 @@ paths:
       summary: Get tasks by topic
       tags:
       - tasks
+  /user/{id}/ban:
+    post:
+      consumes:
+      - application/json
+      description: Ban user by id
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Ban payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BanProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.BanProfileResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Ban user
+      tags:
+      - admin-users
+  /user/{id}/unban:
+    post:
+      description: Remove ban from user by id
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessWrapper'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unban user
+      tags:
+      - admin-users
   /user/all:
     get:
       description: Returns list of all users

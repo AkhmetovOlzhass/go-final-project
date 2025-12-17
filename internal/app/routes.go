@@ -51,7 +51,7 @@ func SetupRouter(c *Container) *gin.Engine {
 	}
 
 	user := api.Group("/user", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.BanMiddleware(c.UserService))
-	{	
+	{
 		user.GET("/profile", c.UserHandler.GetProfile)
 		user.PUT("/profile", c.UserHandler.UpdateProfile)
 		user.GET("/all", c.UserHandler.GetAllUsers)
@@ -60,11 +60,11 @@ func SetupRouter(c *Container) *gin.Engine {
 		protectedUser.Use(middleware.RoleMiddleware("Admin"))
 		{
 			protectedUser.POST("/:id/ban", c.UserHandler.BanProfile)
-			// protectedUser.POST("/:id/unban", c.UserHandler.UnbanProfile)
+			protectedUser.POST("/:id/unban", c.UserHandler.UnbanProfile)
 		}
 	}
 
-	topic := api.Group("/topics", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")),middleware.BanMiddleware(c.UserService))
+	topic := api.Group("/topics", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.BanMiddleware(c.UserService))
 	{
 		topic.GET("", c.TopicHandler.GetAll)
 		topic.GET("/:id", c.TopicHandler.GetByID)
@@ -78,7 +78,7 @@ func SetupRouter(c *Container) *gin.Engine {
 		}
 	}
 
-	tasks := api.Group("/tasks", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")),middleware.BanMiddleware(c.UserService))
+	tasks := api.Group("/tasks", middleware.AuthMiddleware(os.Getenv("JWT_SECRET")), middleware.BanMiddleware(c.UserService))
 	{
 		tasks.GET("", c.TaskHandler.GetAllTasks)
 		tasks.GET("/drafts", c.TaskHandler.GetDraftTasks)

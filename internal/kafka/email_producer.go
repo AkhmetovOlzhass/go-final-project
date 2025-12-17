@@ -45,7 +45,11 @@ func NewEmailProducer() *EmailProducer {
 		queue:  make(chan queuedMessage, 100),
 	}
 
-	go p.worker()
+	const workers = 8
+
+	for i := 0; i < workers; i++ {
+		go p.worker()
+	}
 
 	log.Println("[Producer] Connected to", broker)
 
@@ -56,7 +60,7 @@ func (p *EmailProducer) SendAsync(msg EmailMessage) {
 	detachedCtx := context.Background()
 
 	select {
-	case p.queue <- queuedMessage{ctx: detachedCtx , msg: msg}:
+	case p.queue <- queuedMessage{ctx: detachedCtx, msg: msg}:
 	default:
 		log.Println("[WARN] EmailProducer queue full — dropped:", msg.Email)
 	}

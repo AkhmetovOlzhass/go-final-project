@@ -1,14 +1,15 @@
 package service
 
 import (
-    "context"
+	"context"
 	"errors"
-    "strings"
+	"strings"
 
 	"learning-platform/internal/models"
 	"learning-platform/internal/repository"
-    "go.opentelemetry.io/otel"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
 
 type UserService struct {
@@ -100,14 +101,14 @@ func (s *UserService) Update(ctx context.Context, id string, email, displayName 
 }
 
 func (s *UserService) BanProfile(
-  	ctx context.Context,
- 	id string,
-  	reason *string,
-  	until *time.Time,
+	ctx context.Context,
+	id string,
+	reason *string,
+	until *time.Time,
 ) (*models.User, error) {
 
-  	ctx, span := otel.Tracer("user").Start(ctx, "UserService.BanUser")
- 	defer span.End()
+	ctx, span := otel.Tracer("user").Start(ctx, "UserService.BanUser")
+	defer span.End()
 
 	user, err := s.users.FindByID(ctx, id)
 	if err != nil {
@@ -130,6 +131,43 @@ func (s *UserService) BanProfile(
 		updates["banned_until"] = until
 	} else {
 		updates["banned_until"] = nil
+	}
+
+	if err := s.users.Update(ctx, id, updates); err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	return s.users.FindByID(ctx, id)
+}
+
+func (s *UserService) UnbanProfile(
+	ctx context.Context,
+	id string,
+) (*models.User, error) {
+
+	ctx, span := otel.Tracer("user").Start(ctx, "UserService.UnbanUser")
+	defer span.End()
+
+	user, err := s.users.FindByID(ctx, id)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, nil
+	}
+
+	if user.IsBanned == models.IsBannedActive {
+		return user, nil
+	}
+
+	updates := map[string]interface{}{
+		"is_banned":    models.IsBannedActive,
+		"banned_at":    nil,
+		"banned_until": nil,
+		"ban_reason":   nil,
 	}
 
 	if err := s.users.Update(ctx, id, updates); err != nil {
