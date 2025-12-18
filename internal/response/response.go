@@ -2,7 +2,6 @@ package response
 
 import (
 	"github.com/gin-gonic/gin"
-	"log"
 )
 
 func Success(c *gin.Context, data interface{}) {
